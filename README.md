@@ -7,7 +7,7 @@
   <a href="LICENSE"><img alt="Apache-2.0 license" src="https://img.shields.io/badge/license-Apache--2.0-7c3aed?style=flat-square"></a>
   <img alt="Node 22.13 or newer" src="https://img.shields.io/badge/node-%E2%89%A522.13-22c55e?style=flat-square">
   <img alt="MCP enabled" src="https://img.shields.io/badge/MCP-enabled-06b6d4?style=flat-square">
-  <img alt="Version 1.0" src="https://img.shields.io/badge/version-1.0-f59e0b?style=flat-square">
+  <a href="https://www.npmjs.com/package/hexwitness"><img alt="npm version" src="https://img.shields.io/npm/v/hexwitness?style=flat-square&color=f59e0b"></a>
 </p>
 
 <p align="center">
@@ -47,7 +47,7 @@ The live viewer remains the agent's eyes. HexWitness becomes its case file: tied
 Requirements: Git and Node.js 22.13 or newer.
 
 ```bash
-npm install --global github:siaginw/HexWitness
+npm install --global hexwitness
 hexwitness setup
 hexwitness demo
 ```
