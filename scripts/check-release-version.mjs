@@ -7,7 +7,7 @@ const root = resolve(import.meta.dirname, "..");
 const packageJson = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 const serverJson = JSON.parse(readFileSync(resolve(root, "server.json"), "utf8"));
 const changelog = readFileSync(resolve(root, "CHANGELOG.md"), "utf8");
-const tag = process.env.GITHUB_REF_NAME;
+const tag = process.env.GITHUB_REF_TYPE === "tag" ? process.env.GITHUB_REF_NAME : undefined;
 
 if (packageJson.version !== VERSION) throw new Error(`package version ${packageJson.version} does not match runtime ${VERSION}`);
 if (packageJson.mcpName !== serverJson.name) throw new Error(`package mcpName ${packageJson.mcpName} does not match server name ${serverJson.name}`);
