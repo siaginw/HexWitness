@@ -17,7 +17,7 @@ node --version
 ## Fast install
 
 ```bash
-npm install --global github:siaginw/HexWitness
+npm install --global hexwitness
 hexwitness setup
 hexwitness demo
 ```
