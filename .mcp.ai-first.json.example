@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "hexwitness": {
+      "command": "node",
+      "args": ["C:/path/to/HexWitness/bin/hexwitness-mcp.mjs"],
+      "env": {
+        "HEXWITNESS_URL": "http://127.0.0.1:7878",
+        "HEXWITNESS_AGENT_SESSION": "replace-with-project-name"
+      }
+    },
+    "binary_ninja_live": {
+      "url": "http://127.0.0.1:9090/mcp"
+    },
+    "ida_live": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "C:/tools/ida-pro-mcp",
+        "idalib-mcp",
+        "--stdio"
+      ]
+    }
+  }
+}

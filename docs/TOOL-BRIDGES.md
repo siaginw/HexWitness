@@ -2,6 +2,8 @@
 
 HexWitness provides durable memory. Binary Ninja, IDA, Ghidra, debugger, and Frida integrations provide live inspection. Agents may use both.
 
+Ready-to-adapt Binary Ninja and IDA MCP configurations are documented in [Binary Ninja and IDA MCP bridges](VIEWER-MCP.md).
+
 ```mermaid
 flowchart LR
   A["Agent"] -->|MCP queries| H["HexWitness daemon"]

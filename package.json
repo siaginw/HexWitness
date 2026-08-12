@@ -46,6 +46,8 @@
     "examples",
     "docs",
     "assets",
+    ".mcp.json.example",
+    ".mcp.ai-first.json.example",
     "AGENTS.md",
     "CONTRIBUTING.md",
     "CHANGELOG.md",

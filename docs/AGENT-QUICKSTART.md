@@ -1,6 +1,6 @@
 # Agent quickstart
 
-## Connect
+## Connect once
 
 Start the query daemon:
 
@@ -9,6 +9,19 @@ hexwitness serve
 ```
 
 Configure the MCP server using [`.mcp.json.example`](../.mcp.json.example). The MCP process talks to the daemon; it does not open the database itself.
+
+To add live Binary Ninja or IDA inspection, use [`.mcp.ai-first.json.example`](../.mcp.ai-first.json.example). HexWitness remains the memory authority; the viewer is consulted only for explicit gaps.
+
+## Ask a goal, not a command sequence
+
+```text
+Use HexWitness to determine what validates this message before dispatch. Drive the
+investigation, reuse retained evidence, and use the connected live viewer read-only
+only if a gap report proves it is needed. Make any new result durable with the
+smallest possible exporter scope.
+```
+
+The `hexwitness_start_investigation` MCP prompt gives an agent the complete sequence below. More examples: [AI-first workflows](AI-FIRST-WORKFLOWS.md).
 
 ## Investigation recipe
 

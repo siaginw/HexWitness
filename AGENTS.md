@@ -12,6 +12,8 @@ HexWitness is an evidence index, not an oracle. Follow this sequence whenever in
 8. Check `hexwitness_evidence` and `hexwitness_contradictions` before stating a conclusion.
 9. Label outputs as proven, strongly inferred, provisional, contradicted, or unknown.
 10. When evidence is missing, request the smallest bounded export or runtime observation that can close the gap.
+11. When a live Binary Ninja or IDA MCP server is available, use it only after the gap is explicit. Prefer read-only inspection, and never rename, patch, comment, or save without user authorization.
+12. A live viewer result is provisional until a build-scoped exporter record is ingested and the result can be reconstructed from HexWitness alone.
 
 Never infer that two builds share addresses. Never treat a function name from one build as proof for another build. Never expose private payload bytes or credentials in claims, issues, commits, or chat.
 
@@ -33,3 +35,11 @@ Return:
 - recommended exporter/tool;
 - minimum fields to collect;
 - whether collection requires static export or controlled runtime capture.
+
+## Agent-led request
+
+Users should be able to state the goal, not a command sequence:
+
+> Determine which function consumes the selected field, prove it against the failing runtime capture, and use the connected live viewer only if HexWitness memory is missing the decisive edge.
+
+The agent owns build selection, evidence reuse, query order, viewer escalation, and the bounded promotion handoff.

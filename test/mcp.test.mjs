@@ -18,6 +18,20 @@ test("MCP publishes the agent-first evidence vocabulary", async () => {
     }
     const health = await client.callTool({ name: "hexwitness_health", arguments: {} });
     assert.match(health.content[0].text, /"ok": true/);
+
+    const prompts = await client.listPrompts();
+    const promptNames = new Set(prompts.prompts.map((prompt) => prompt.name));
+    for (const expected of ["hexwitness_start_investigation", "hexwitness_compare_runtime_behavior", "hexwitness_promote_live_finding"]) {
+      assert.equal(promptNames.has(expected), true, `missing ${expected}`);
+    }
+
+    const investigation = await client.getPrompt({
+      name: "hexwitness_start_investigation",
+      arguments: { question: "What parses message 17?", build_id: "toy-v1", preferred_viewer: "binary_ninja" },
+    });
+    assert.match(investigation.messages[0].content.text, /Drive the investigation/);
+    assert.match(investigation.messages[0].content.text, /gap_report/);
+    assert.match(investigation.messages[0].content.text, /Do not mutate/);
   } finally {
     await client.close();
     await server.close();

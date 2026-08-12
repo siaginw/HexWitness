@@ -7,7 +7,7 @@ flowchart LR
   D --> E[("evidence.db")]
 ```
 
-Start `npm start`, then copy [`.mcp.json.example`](../.mcp.json.example) into the MCP configuration used by your agent. `HEXWITNESS_AGENT_SESSION` is hashed before retention.
+Start `npm start`, then copy [`.mcp.json.example`](../.mcp.json.example) into the MCP configuration used by your agent. For a complete memory-plus-viewer workspace, use [`.mcp.ai-first.json.example`](../.mcp.ai-first.json.example) and [the Binary Ninja/IDA bridge guide](VIEWER-MCP.md). `HEXWITNESS_AGENT_SESSION` is hashed before retention.
 
 ## Tool families
 
@@ -35,7 +35,15 @@ All tool names carry the `hexwitness_` prefix.
 
 The memory tool makes reuse explicit: retained evidence first, live viewer only for a documented gap, then bounded export and ingestion. Activity history proves which operations ran without retaining arguments or result content.
 
-The server also publishes `hexwitness_start_investigation`, a prompt that enforces this sequence.
+## Agent prompts
+
+| Prompt | Purpose |
+|---|---|
+| `hexwitness_start_investigation` | Drive a complete memory-first question, escalating only explicit gaps to a live viewer |
+| `hexwitness_compare_runtime_behavior` | Compare working/failing captures, find the first divergence, and resolve its static consumer |
+| `hexwitness_promote_live_finding` | Convert a transient Binary Ninja or IDA result into a bounded export and ingest handoff |
+
+These prompts let the user state the investigation goal instead of manually sequencing MCP calls. The agent still exposes each individual tool for auditability and advanced control.
 
 ## Remote operation
 

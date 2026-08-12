@@ -2,6 +2,9 @@
 
 ## 0.2.0 — 2026-08-11
 
+- AI-first investigation, runtime comparison, and live-finding promotion MCP prompts.
+- Goal-driven workflow guide with end-to-end reverse-engineering use cases.
+- Optional Binary Ninja BinAssistMCP and IDA `idalib-mcp` integration recipes.
 - Generic sealed capture packs with baseline roles, action markers, scenario gates, artifact hashes, audit, verification, and safe normalization.
 - Runtime relationship graph, capture inventory, timelines, search, comparison, event-family deltas, and first-divergence analysis.
 - Structured daemon query, class/object-model, UUID, type registry, function inventory, vtable, dataflow, slice, reach, coverage, and gap-worklist APIs.

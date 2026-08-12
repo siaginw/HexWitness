@@ -11,11 +11,12 @@
 </p>
 
 <p align="center">
-  <strong>Evidence memory for reverse engineering.</strong><br>
-  Static analysis, runtime traces, protocol observations, and human conclusions—one build-scoped graph that humans and agents can query.
+  <strong>AI-led evidence memory for reverse engineering.</strong><br>
+  Ask the question once. Your agent reuses static analysis, runtime traces, protocol observations, and proven conclusions before touching a live viewer.
 </p>
 
 <p align="center">
+  <a href="#let-the-agent-drive">AI workflow</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#capture-runtime-behavior">Capture runtime behavior</a> ·
   <a href="#connect-an-agent">Connect an agent</a> ·
@@ -54,6 +55,36 @@ flowchart LR
 | **Vendor-neutral interchange** | JSONL and adapter manifests prevent lock-in to one disassembler, debugger, or target. |
 
 HexWitness is target-agnostic. No application, game, protocol, address, packet layout, or private evidence is built into the core.
+
+## Let the agent drive
+
+HexWitness is not intended to make a person memorize another command vocabulary. Connect its MCP server, describe the investigation, and let the agent choose the evidence sequence:
+
+```text
+Use HexWitness to determine which function validates message length before dispatch
+and whether the failing capture reached it. Select the exact build and reuse retained
+evidence first. If the proof is missing and Binary Ninja or IDA is connected, inspect
+only the smallest missing scope read-only, then prepare the bounded export that makes
+the result durable. Separate proof, inference, contradictions, and unknowns.
+```
+
+The agent performs:
+
+```text
+memory → exact build → resolve → explain → focused evidence → answer
+                                              ↓ missing
+                                      live viewer read-only
+                                              ↓
+                                      bounded promotion
+```
+
+Three MCP prompts package the high-value workflows:
+
+- `hexwitness_start_investigation` drives a complete static or mixed investigation;
+- `hexwitness_compare_runtime_behavior` finds the first divergence between working and failing captures;
+- `hexwitness_promote_live_finding` turns a transient Binary Ninja or IDA result into a minimal durable handoff.
+
+See [AI-first workflows](docs/AI-FIRST-WORKFLOWS.md) for realistic protocol, crash, class-recovery, vulnerability, and team-handoff examples. Connect [Binary Ninja or IDA MCP](docs/VIEWER-MCP.md) as optional live eyes.
 
 ## Durable memory: investigate once, reuse it
 
@@ -96,6 +127,8 @@ node bin/hexwitness.mjs coverage --build toy-v1
 ```
 
 The bundled demo is synthetic and redistributable. It contains no third-party binary data.
+
+Connect [`.mcp.json.example`](.mcp.json.example), then ask your agent to investigate. The CLI examples below are available for verification, CI, scripting, and recovery; agents can perform the same query workflow through MCP.
 
 ## Export a binary
 
@@ -167,7 +200,9 @@ Start the daemon, then configure the stdio MCP adapter:
 }
 ```
 
-An agent starts with `hexwitness_health`, selects an exact build, resolves a target, reads its dossier, and only then performs focused graph or capture queries. [`AGENTS.md`](AGENTS.md) contains the full evidence discipline.
+An agent starts with health and memory status, selects an exact build, resolves a target, reads its dossier, and only then performs focused graph or capture queries. [`AGENTS.md`](AGENTS.md) contains the full evidence discipline.
+
+For a combined workspace with optional live viewers, copy [`.mcp.ai-first.json.example`](.mcp.ai-first.json.example). The recommended pairings are [BinAssistMCP for Binary Ninja and `ida-pro-mcp`/`idalib-mcp` for IDA](docs/VIEWER-MCP.md). These third-party viewers provide live context; HexWitness provides durable memory, build identity, provenance, contradiction handling, and promotion.
 
 ## Evidence model
 
@@ -206,6 +241,8 @@ Read the [privacy model](docs/PRIVACY.md) and [security policy](SECURITY.md).
 | [CLI reference](docs/CLI.md) | Commands and environment |
 | [HTTP API](docs/API.md) | Read-only integration surface |
 | [MCP integration](docs/MCP.md) | Agent setup and tool vocabulary |
+| [AI-first workflows](docs/AI-FIRST-WORKFLOWS.md) | Goal-driven prompts and end-to-end investigation examples |
+| [Binary Ninja and IDA MCP](docs/VIEWER-MCP.md) | Optional live-viewer setup, safety, and promotion flow |
 | [Adapter SDK](docs/ADAPTER-SDK.md) | Add another RE or runtime tool |
 | [Sealed capture packs](docs/CAPTURE-PACKS.md) | Collect, normalize, audit, compare, and import runtime evidence |
 | [Binary dump guide](docs/BINARY-DUMP-GUIDE.md) | Export the smallest sufficient evidence |

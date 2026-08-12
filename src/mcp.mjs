@@ -10,7 +10,7 @@ function content(value) {
 
 export function createMcpServer(client = new DaemonClient()) {
   const server = new McpServer({ name: "hexwitness", version: VERSION }, {
-    instructions: `HexWitness provides evidence-backed reverse-engineering queries. Start with hexwitness_health and hexwitness_builds. Resolve uncertain names with hexwitness_search or hexwitness_query before calling hexwitness_explain. Keep class, UUID, type, offset, metadata, graph, and capture queries scoped to the exact build. Treat claims as hypotheses unless supported by evidence. Report contradictions rather than silently selecting one value.`,
+    instructions: `HexWitness is durable evidence memory for AI-led reverse engineering. Begin every investigation with hexwitness_health, hexwitness_memory_status, and hexwitness_builds. Resolve uncertain names with hexwitness_search or hexwitness_query before calling hexwitness_explain. Keep every address, class, UUID, type, offset, graph, and capture query scoped to the exact build. Use retained evidence before a live Binary Ninja, IDA, debugger, or instrumentation tool. If memory cannot answer the question, call hexwitness_gap_report and hexwitness_dump_guide, inspect only the smallest missing scope in the live tool, then request a bounded export and ingestion so the result becomes durable. Treat live-viewer output as provisional until promoted. Treat claims as hypotheses unless supported by evidence. Report contradictions rather than silently selecting one value. Never rename, patch, or otherwise mutate a live analysis database unless the user explicitly authorizes it.`,
   });
 
   server.registerTool("hexwitness_health", {
@@ -253,9 +253,21 @@ export function createMcpServer(client = new DaemonClient()) {
 
   server.registerPrompt("hexwitness_start_investigation", {
     title: "Start an evidence-first investigation",
-    description: "Canonical agent workflow for a new binary question.",
-    argsSchema: { question: z.string(), build_id: z.string().optional() },
-  }, ({ question, build_id }) => ({ messages: [{ role: "user", content: { type: "text", text: `Investigate: ${question}\nBuild: ${build_id ?? "select the matching build first"}\n\nUse HexWitness in this order: health, builds, search/query, explain, the smallest focused graph/object/capture query, evidence, contradictions, gaps. Separate proven facts from hypotheses. Identify the smallest missing dump or runtime observation needed to close each gap.` } }] }));
+    description: "Let the agent drive a complete memory-first investigation and escalate only proven gaps to a live viewer.",
+    argsSchema: { question: z.string(), build_id: z.string().optional(), preferred_viewer: z.enum(["auto", "binary_ninja", "ida", "none"]).optional() },
+  }, ({ question, build_id, preferred_viewer }) => ({ messages: [{ role: "user", content: { type: "text", text: `Investigate: ${question}\nBuild: ${build_id ?? "select the exact matching build first"}\nPreferred live viewer: ${preferred_viewer ?? "auto"}\n\nDrive the investigation without asking me to translate it into commands. Start with health, memory status, and builds. Resolve the target with search/query, read its dossier with explain, then use only the smallest focused graph, object-model, or capture queries. Inspect evidence and contradictions before drawing a conclusion. If retained evidence is insufficient, use gap_report and dump_guide, choose the smallest read-only live Binary Ninja or IDA query that closes the gap, and state the exact bounded export needed to promote that result into HexWitness. Do not mutate the live analysis database without explicit authorization. Report proven facts, strong inferences, contradictions, unknowns, and the next evidence action separately.` } }] }));
+
+  server.registerPrompt("hexwitness_compare_runtime_behavior", {
+    title: "Compare two runtime behaviors",
+    description: "Find the first evidence-backed divergence between a working and failing capture, then trace it into static code.",
+    argsSchema: { working_capture_id: z.string(), failing_capture_id: z.string(), question: z.string().optional() },
+  }, ({ working_capture_id, failing_capture_id, question }) => ({ messages: [{ role: "user", content: { type: "text", text: `Compare working capture ${working_capture_id} with failing capture ${failing_capture_id}.\nQuestion: ${question ?? "identify the earliest meaningful divergence and its likely static consumer"}\n\nUse capture_detail for context, capture_compare for the first ordered divergence, then narrow capture_timeline/search/graph around that point. Resolve any addresses against the exact build and call explain before traversing callers, callees, xrefs, dataflow, or slices. Check evidence and contradictions. If the consumer is not retained, produce the smallest read-only live-viewer query and bounded export request needed to prove it.` } }] }));
+
+  server.registerPrompt("hexwitness_promote_live_finding", {
+    title: "Promote a live viewer finding",
+    description: "Turn a transient Binary Ninja or IDA result into a minimal, build-scoped HexWitness evidence handoff.",
+    argsSchema: { build_id: z.string(), viewer: z.enum(["binary_ninja", "ida", "other"]), finding: z.string(), objective: z.enum(["identity", "control_flow", "data_flow", "object_model", "protocol", "runtime", "behavior"]).optional() },
+  }, ({ build_id, viewer, finding, objective }) => ({ messages: [{ role: "user", content: { type: "text", text: `Prepare a bounded promotion for this live finding.\nBuild: ${build_id}\nViewer: ${viewer}\nObjective: ${objective ?? "behavior"}\nFinding: ${finding}\n\nFirst query HexWitness to ensure the finding is not already retained. Use gap_report and dump_guide to identify the minimum records required. Return: the exact function/type/address scope, required calls/xrefs/fields/slices, provenance fields, whether decompiler text is necessary, the appropriate HexWitness exporter, and the ingest verification query. Do not request the whole database or proprietary binary bytes. Treat the finding as provisional until the exported JSONL is ingested and re-queried.` } }] }));
 
   return server;
 }
