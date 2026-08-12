@@ -21,11 +21,11 @@ function localViewerUrl(value) {
   return url.href.replace(/\/$/, "");
 }
 
-export function buildServerDefinitions({ agentEntry, session = "hexwitness-project", client = "generic", viewer = "none", binaryNinjaUrl = BINARY_NINJA_MCP_URL, idaDirectory = "C:/tools/ida-pro-mcp" }) {
+export function buildServerDefinitions({ cliEntry, session = "hexwitness-project", client = "generic", viewer = "none", binaryNinjaUrl = BINARY_NINJA_MCP_URL, idaDirectory = "C:/tools/ida-pro-mcp" }) {
   const servers = {
     hexwitness: {
       command: process.execPath,
-      args: [resolve(agentEntry)],
+      args: [resolve(cliEntry), "agent"],
       env: { HEXWITNESS_AGENT_SESSION: session, HEXWITNESS_AGENT_CLIENT: client },
     },
   };
@@ -146,7 +146,7 @@ export async function runSetup(args = process.argv.slice(2), dependencies = {}) 
     for (const client of clients) if (!SUPPORTED_CLIENTS.includes(client)) throw new Error(`unsupported client: ${client}`);
     if (!SUPPORTED_VIEWERS.includes(viewer)) throw new Error(`unsupported viewer: ${viewer}`);
     const root = resolve(import.meta.dirname, "..");
-    const agentEntry = resolve(root, "bin", "hexwitness-agent.mjs");
+    const cliEntry = resolve(root, "dist", "hexwitness.mjs");
     const serverNames = new Set(["hexwitness"]);
     if (["binary-ninja", "both"].includes(viewer)) serverNames.add("binary_ninja_live");
     if (["ida", "both"].includes(viewer)) serverNames.add("ida_live");
@@ -157,7 +157,7 @@ export async function runSetup(args = process.argv.slice(2), dependencies = {}) 
     }
     const results = [];
     for (const client of clients) {
-      const servers = buildServerDefinitions({ agentEntry, session: options.session, client, viewer, binaryNinjaUrl: options.binaryNinjaUrl, idaDirectory: options.idaDirectory });
+      const servers = buildServerDefinitions({ cliEntry, session: options.session, client, viewer, binaryNinjaUrl: options.binaryNinjaUrl, idaDirectory: options.idaDirectory });
       let mcp;
       if (["codex", "claude-code", "vscode"].includes(client)) {
         mcp = { method: "native-cli", entries: runNative(client, servers, options) };

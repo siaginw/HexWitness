@@ -7,14 +7,15 @@ import { buildServerDefinitions, defaultClientPath, mergeMcpJson, runSetup } fro
 
 test("setup definitions combine autostart memory and optional live viewers", () => {
   const servers = buildServerDefinitions({
-    agentEntry: "./bin/hexwitness-agent.mjs",
+    cliEntry: "./dist/hexwitness.mjs",
     session: "fixture",
     client: "codex",
     viewer: "both",
     idaDirectory: "./ida-pro-mcp",
   });
   assert.equal(servers.hexwitness.command, process.execPath);
-  assert.equal(servers.hexwitness.args[0], resolve("./bin/hexwitness-agent.mjs"));
+  assert.equal(servers.hexwitness.args[0], resolve("./dist/hexwitness.mjs"));
+  assert.equal(servers.hexwitness.args[1], "agent");
   assert.equal(servers.hexwitness.env.HEXWITNESS_AGENT_SESSION, "fixture");
   assert.equal(servers.hexwitness.env.HEXWITNESS_AGENT_CLIENT, "codex");
   assert.equal(servers.binary_ninja_live.url, "http://127.0.0.1:24642/mcp");
@@ -22,8 +23,8 @@ test("setup definitions combine autostart memory and optional live viewers", () 
 });
 
 test("setup keeps live viewer MCP endpoints local", () => {
-  assert.throws(() => buildServerDefinitions({ agentEntry: "./agent.mjs", viewer: "binary-ninja", binaryNinjaUrl: "https://viewer.example/mcp" }), /localhost/);
-  assert.throws(() => buildServerDefinitions({ agentEntry: "./agent.mjs", viewer: "binary-ninja", binaryNinjaUrl: "not a url" }), /invalid/);
+  assert.throws(() => buildServerDefinitions({ cliEntry: "./hexwitness.mjs", viewer: "binary-ninja", binaryNinjaUrl: "https://viewer.example/mcp" }), /localhost/);
+  assert.throws(() => buildServerDefinitions({ cliEntry: "./hexwitness.mjs", viewer: "binary-ninja", binaryNinjaUrl: "not a url" }), /invalid/);
 });
 
 test("setup JSON merge preserves existing servers and creates a backup", () => {

@@ -17,6 +17,9 @@ npm run check
 npm run public:audit
 npm audit --audit-level=high
 npm run test:package
+npm run test:upgrade
+npm run test:load
+npm run release:check
 ```
 
 Public feature claims need a focused test or an explicit compatibility boundary. See [Quality](docs/QUALITY.md).

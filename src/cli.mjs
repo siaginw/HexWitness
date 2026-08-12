@@ -1,19 +1,24 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
-import { loadConfig } from "../src/config.mjs";
-import { openEvidenceDb } from "../src/db.mjs";
-import { doctor } from "../src/doctor.mjs";
-import { ingestFile } from "../src/ingest.mjs";
-import { contradictions, explain, search, stats } from "../src/query.mjs";
-import { gapReport } from "../src/query.mjs";
-import { startDaemon } from "../src/daemon.mjs";
-import { dumpGuide } from "../src/guides.mjs";
-import { addCaptureArtifact, addCaptureMarker, initCapturePack, inspectCapturePack, normalizeCapturePack, sealCapturePack, verifyCapturePack } from "../src/capture-pack.mjs";
-import { packCaptureDirectory } from "../src/capture-bundle.mjs";
-import { formatSetupSummary, runSetup } from "../src/setup.mjs";
-import { VERSION } from "../src/constants.mjs";
-import { analysisSlices, captureDetail, captureGraph, captureSearch, captureTimeline, classDetail, compareBuilds, compareCaptures, coverage, dataflow, decompSearch, edgeKinds, evidenceFor, fieldOffsets, functionInventory, gapWorklist, genericQuery, listBuilds, listCaptures, memoryStatus, metadataLookup, neighbors, objectModel, reachable, shortestPath, typeRegistry, uuidLookup, vtableDetail, xrefs } from "../src/query.mjs";
+import { loadConfig } from "./config.mjs";
+import { openEvidenceDb } from "./db.mjs";
+import { doctor } from "./doctor.mjs";
+import { ingestFile } from "./ingest.mjs";
+import { contradictions, explain, search, stats } from "./query.mjs";
+import { gapReport } from "./query.mjs";
+import { startDaemon } from "./daemon.mjs";
+import { dumpGuide } from "./guides.mjs";
+import { addCaptureArtifact, addCaptureMarker, initCapturePack, inspectCapturePack, normalizeCapturePack, sealCapturePack, verifyCapturePack } from "./capture-pack.mjs";
+import { packCaptureDirectory } from "./capture-bundle.mjs";
+import { formatSetupSummary, runSetup } from "./setup.mjs";
+import { VERSION } from "./constants.mjs";
+import { startAgent } from "./agent.mjs";
+import { startMcp } from "./mcp.mjs";
+import { adapterCatalog, adapterDetail } from "./adapters.mjs";
+import { publicContract } from "./contract.mjs";
+import { backupEvidenceDb } from "./backup.mjs";
+import { analysisSlices, captureDetail, captureGraph, captureSearch, captureTimeline, classDetail, compareBuilds, compareCaptures, coverage, dataflow, decompSearch, edgeKinds, evidenceFor, fieldOffsets, functionInventory, gapWorklist, genericQuery, listBuilds, listCaptures, memoryStatus, metadataLookup, neighbors, objectModel, reachable, shortestPath, typeRegistry, uuidLookup, vtableDetail, xrefs } from "./query.mjs";
 
 function option(args, name, fallback = null) {
   const index = args.indexOf(name);
@@ -28,6 +33,11 @@ function help() {
 Usage:
   hexwitness init [--db PATH]
   hexwitness setup [--client codex,cursor] [--viewer none|binary-ninja|ida|both]
+  hexwitness agent
+  hexwitness mcp
+  hexwitness adapters [ADAPTER_ID]
+  hexwitness contract
+  hexwitness backup OUTPUT [--db PATH]
   hexwitness ingest FILE [--db PATH]
   hexwitness query [TEXT] [--build BUILD] [--kinds function,class] [--edge-kinds call,reads]
   hexwitness serve [--db PATH] [--host HOST] [--port PORT]
@@ -90,6 +100,14 @@ try {
       const result = await runSetup(args.slice(1));
       if (args.includes("--json")) print(result); else process.stdout.write(`${formatSetupSummary(result)}\n`);
       break;
+    }
+    case "agent": await startAgent(); break;
+    case "mcp": await startMcp(); break;
+    case "adapters": print(args[1] ? adapterDetail(args[1]) : adapterCatalog()); break;
+    case "contract": print(publicContract()); break;
+    case "backup": {
+      if (!args[1]) throw new Error("backup requires an output path");
+      print(backupEvidenceDb(config.evidenceDb, args[1])); break;
     }
     case "ingest": {
       if (!args[1]) throw new Error("ingest requires a JSONL file");

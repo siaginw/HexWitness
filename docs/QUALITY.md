@@ -10,7 +10,12 @@ HexWitness publishes only claims that have a visible test, audit, or documented 
 | `npm run test:coverage` | Coverage report for core, interfaces, setup, and adapters |
 | `npm run public:audit` | No obvious credentials, private paths, proprietary binary formats, captures, dumps, oversized payloads, or target-specific corpus references |
 | `npm audit --audit-level=high` | No known high-or-critical npm dependency advisory in the resolved tree |
-| `npm run test:package` | Packed artifact installs in isolation and completes CLI → DB → daemon autostart → MCP → evidence query |
+| `npm run test:package` | Packed artifact installs in isolation, exposes one executable with no runtime dependency tree or source internals, discovers adapters, and completes CLI → DB → daemon autostart → MCP → evidence query |
+| `npm run test:upgrade` | Installed 1.0 migrates a schema-1 database without evidence loss and creates a verified backup |
+| `npm run test:load` | Mixed concurrent read-only daemon queries complete without request failures |
+| `npm run release:check` | Runtime, package, changelog, and release tag versions agree |
+| CodeQL | JavaScript security-extended analysis on pushes, pull requests, and a weekly schedule |
+| Tagged release | Release archive, CycloneDX SBOM, SHA-256 manifest, and GitHub provenance/SBOM attestations |
 | CI matrix | Node 22 and 24 on current Ubuntu, Windows, and macOS runners |
 
 Run the same gates locally:
@@ -22,6 +27,9 @@ npm run test:coverage
 npm run public:audit
 npm audit --audit-level=high
 npm run test:package
+npm run test:upgrade
+npm run test:load
+npm run release:check
 ```
 
 ## Connected-system coverage
@@ -32,12 +40,17 @@ The automated suite checks these boundaries together:
 2. Repeated import remains idempotent.
 3. SQLite preserves canonical 64-bit addresses and exact build scope.
 4. CLI creates demo state and diagnoses it.
-5. Agent entrypoint starts a missing local daemon.
+5. Unified `hexwitness agent` starts a missing local daemon.
 6. MCP discovers every evidence tool with read-only, non-destructive, idempotent annotations.
 7. MCP queries the same database created by the installed CLI.
 8. Setup installs client-tailored guidance and preserves existing configuration through backups.
 9. Capture packaging detects the standard artifact set, rejects missing or empty baseline data, normalizes secrets recursively, seals hashes, verifies integrity, and imports.
 10. A normalization failure rolls the pack back to an active, recoverable state.
+11. The installed tarball contains one bundled runtime, one command, and discoverable vendor adapters without shipping the internal source/test tree.
+12. Every native agent skill declares the unified runtime contract; Codex metadata declares its HexWitness MCP dependency.
+13. Older supported databases migrate without evidence loss; newer schemas fail closed.
+14. Consistent snapshots pass SQLite integrity verification and never overwrite an existing backup.
+15. Concurrent mixed daemon queries complete under a configurable sustained-load gate.
 
 ## Evidence correctness checks
 

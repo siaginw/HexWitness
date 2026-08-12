@@ -20,7 +20,18 @@ test("every supported native agent receives its own skill pack", () => {
     const guidance = readAgentGuidance(project, client);
     assert.match(guidance, /^---\r?\nname: hexwitness/m);
     assert.match(guidance, /evidence/i);
+    assert.match(guidance, /hexwitness agent/);
+    assert.match(guidance, /hexwitness adapters \[ID\]/);
+    assert.match(guidance, /hexwitness_contract/);
+    assert.match(guidance, /Never depend on package-internal/);
   }
+});
+
+test("Codex skill metadata declares the HexWitness MCP dependency", () => {
+  const metadata = readFileSync(join(project, "agent-packs", "codex", "hexwitness", "agents", "openai.yaml"), "utf8");
+  assert.match(metadata, /default_prompt: "Use \$hexwitness/);
+  assert.match(metadata, /type: "mcp"/);
+  assert.match(metadata, /value: "hexwitness"/);
 });
 
 test("agent guidance installation backs up an existing tailored skill", () => {
@@ -44,5 +55,7 @@ test("generic clients receive a portable guide beside their MCP config", () => {
     const result = installAgentGuidance("generic", project, { home: root, output });
     assert.equal(result.target, join(root, "hexwitness-agent-instructions.md"));
     assert.match(readFileSync(result.target, "utf8"), /Drive reverse-engineering investigations/);
+    assert.match(readFileSync(result.target, "utf8"), /hexwitness agent/);
+    assert.match(readFileSync(result.target, "utf8"), /hexwitness adapters \[ID\]/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

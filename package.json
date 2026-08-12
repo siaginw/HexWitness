@@ -1,6 +1,6 @@
 {
   "name": "hexwitness",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "Evidence-first reverse-engineering workbench for humans and AI agents",
   "author": {
     "name": "SiagiNW",
@@ -31,14 +31,10 @@
     "node": ">=22.13.0"
   },
   "bin": {
-    "hexwitness": "bin/hexwitness.mjs",
-    "hexwitness-mcp": "bin/hexwitness-mcp.mjs",
-    "hexwitness-agent": "bin/hexwitness-agent.mjs",
-    "hexwitness-setup": "bin/hexwitness-setup.mjs"
+    "hexwitness": "dist/hexwitness.mjs"
   },
   "files": [
-    "bin",
-    "src",
+    "dist",
     "adapters/**/*.py",
     "adapters/**/*.mjs",
     "adapters/**/*.js",
@@ -62,23 +58,28 @@
     "LICENSE"
   ],
   "scripts": {
-    "start": "node bin/hexwitness.mjs serve",
-    "mcp": "node bin/hexwitness-mcp.mjs",
-    "setup": "node bin/hexwitness-setup.mjs",
-    "demo": "node bin/hexwitness.mjs demo --reset",
-    "doctor": "node bin/hexwitness.mjs doctor",
-    "test": "node --test",
-    "check": "node --check src/daemon.mjs && node --check src/mcp.mjs && node --check src/agent-guidance.mjs && node --check src/ingest.mjs && node --check src/query.mjs && node --check src/capture-pack.mjs && node --check src/capture-bundle.mjs && node --check src/setup.mjs && node --check adapters/frida-jsonl/observer.js && node --check bin/hexwitness.mjs && node --check bin/hexwitness-mcp.mjs && node --check bin/hexwitness-agent.mjs && node --check bin/hexwitness-setup.mjs && node scripts/check-docs.mjs && npm test",
-    "test:coverage": "node --experimental-test-coverage --test",
+    "build": "node scripts/build.mjs",
+    "prepare": "npm run build",
+    "start": "node dist/hexwitness.mjs serve",
+    "mcp": "node dist/hexwitness.mjs mcp",
+    "setup": "node dist/hexwitness.mjs setup",
+    "demo": "node dist/hexwitness.mjs demo --reset",
+    "doctor": "node dist/hexwitness.mjs doctor",
+    "test": "node --test \"test/*.test.mjs\"",
+    "check": "npm run build && node --check dist/hexwitness.mjs && node --check adapters/frida-jsonl/observer.js && node scripts/check-docs.mjs && npm test",
+    "test:coverage": "node --experimental-test-coverage --test-coverage-exclude=dist/** --test \"test/*.test.mjs\"",
     "test:package": "node scripts/smoke-package.mjs",
+    "test:upgrade": "node scripts/smoke-upgrade.mjs",
+    "test:load": "node scripts/load-test.mjs",
+    "release:check": "node scripts/check-release-version.mjs",
     "public:audit": "node scripts/public-audit.mjs",
     "pack:dry": "npm pack --dry-run"
   },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "zod": "^3.25.76"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "ajv": "^8.17.1"
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "ajv": "^8.17.1",
+    "esbuild": "^0.25.0",
+    "zod": "^3.25.76"
   }
 }

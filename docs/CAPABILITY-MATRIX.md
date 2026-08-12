@@ -25,6 +25,10 @@ HexWitness reproduces the reusable workflow of a mature reverse-engineering evid
 | Coverage | Static depth, evidence classes, runtime captures, open gaps | Complete |
 | Agent API | Read-only REST daemon, route manifest, MCP tools, investigation/runtime-comparison/live-promotion prompts | Complete |
 | Agent onboarding | One wizard configures MCP plus tailored native skills/guides for Codex, Claude Code, Cursor, VS Code, Claude Desktop, or generic clients | Complete |
+| Unified distribution | One `hexwitness` command, bundled runtime, no installed source/test internals, no runtime npm dependency tree | Complete |
+| Adapter discovery | Machine-readable `hexwitness adapters [ID]` catalog with installed paths and capabilities | Complete |
+| Stable 1.x contract | Machine-readable CLI/REST/MCP/interchange/database policy, migration, backup, deprecation rules | Complete |
+| Release provenance | Archive checksums and GitHub keyless build-provenance attestation | Complete on tagged releases |
 | Live viewer orchestration | Memory-first policy and integration recipes for official Binary Ninja MCP and Hex-Rays-endorsed IDA Pro MCP | Complete contract; viewer edition/version compatibility varies |
 | MCP safety metadata | Every query tool advertises read-only, non-destructive, idempotent, closed-world hints | Complete |
 | Durable memory | Evidence-first reuse, visible memory status, idempotent promotion, privacy-separated activity history | Complete |

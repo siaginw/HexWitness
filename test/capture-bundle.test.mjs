@@ -55,7 +55,7 @@ test("capture directory is the short CLI path", () => {
       markers: [{ name: "request", ts_utc: ts }],
       import: false,
     }));
-    const run = spawnSync(process.execPath, [join(import.meta.dirname, "..", "bin", "hexwitness.mjs"), "capture", source, "--out", output, "--no-import"], { encoding: "utf8" });
+    const run = spawnSync(process.execPath, [join(import.meta.dirname, "..", "dist", "hexwitness.mjs"), "capture", source, "--out", output, "--no-import"], { encoding: "utf8" });
     assert.equal(run.status, 0, run.stderr);
     assert.equal(JSON.parse(run.stdout).verification.passed, true);
   } finally { rmSync(root, { recursive: true, force: true }); }

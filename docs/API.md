@@ -8,6 +8,7 @@ Base URL: `http://127.0.0.1:7878`
 
 | Path | Key parameters | Result |
 |---|---|---|
+| `/v1/contract` | none | Stable 1.x CLI, REST, MCP, interchange, and database contract |
 | `/v1/health` | — | Service, version, database, indexed counts |
 | `/v1/routes` | — | Machine-readable route manifest |
 | `/v1/memory` | — | Durable evidence counts, size, latest ingest/capture, reuse and activity policy |

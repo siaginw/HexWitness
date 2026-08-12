@@ -2,6 +2,13 @@
 
 Adapters emit newline-delimited `hexwitness-jsonl-v1` records. They never connect directly to the database.
 
+Discover their installed paths and capabilities without searching package files:
+
+```sh
+hexwitness adapters
+hexwitness adapters binary-ninja
+```
+
 | Adapter | Runs inside | Default export |
 |---|---|---|
 | `binary-ninja` | Binary Ninja Python console | Functions, strings, imports, calls, references, blocks, types, fields, optional HLIL |
