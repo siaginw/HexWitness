@@ -70,7 +70,7 @@ The daemon is query-only over HTTP. It binds to localhost by default. A non-loca
 
 MCP annotations are safety hints, not an authorization system. HexWitness also enforces read-only behavior in the daemon itself.
 
-See [Security](../SECURITY.md) and [Privacy](PRIVACY.md).
+See [Security](../.github/SECURITY.md) and [Privacy](PRIVACY.md).
 
 ## Compatibility boundary
 

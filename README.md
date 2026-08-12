@@ -212,7 +212,7 @@ raw private material  →  normalized project evidence  →  synthetic public fi
 - Capture normalization recursively removes common secret and payload fields.
 - Public-release audit blocks credentials, captures, dumps, proprietary binary formats, large embedded payloads, and personal paths.
 
-Read [Privacy](docs/PRIVACY.md) and [Security](SECURITY.md) before importing sensitive work.
+Read [Privacy](docs/PRIVACY.md) and [Security](.github/SECURITY.md) before importing sensitive work.
 
 ## Documentation
 
@@ -239,7 +239,7 @@ Commercial viewer APIs still vary by edition and release. HexWitness documents t
 
 ## Contributing
 
-Focused issues and pull requests welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md). Never attach proprietary binaries, vendor databases, credentials, or captures you cannot redistribute.
+Focused issues and pull requests welcome. Read [Contributing](.github/CONTRIBUTING.md). Never attach proprietary binaries, vendor databases, credentials, or captures you cannot redistribute.
 
 Apache-2.0. Analyzed binaries, imported evidence, vendor SDKs, and RE databases retain their own terms.
 

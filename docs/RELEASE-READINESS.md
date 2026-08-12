@@ -51,4 +51,4 @@ These are release-roadmap items, not hidden guarantees:
 - CodeQL and dependency/public-data audits are automated; no independent security audit is claimed.
 - The daemon has a sustained concurrent query gate, not enterprise capacity certification.
 
-See [Stability](STABILITY.md), [Compatibility](COMPATIBILITY.md), and [Security](../SECURITY.md) for the exact trust boundary.
+See [Stability](STABILITY.md), [Compatibility](COMPATIBILITY.md), and [Security](../.github/SECURITY.md) for the exact trust boundary.

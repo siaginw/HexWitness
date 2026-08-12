@@ -22,4 +22,4 @@ npm run test:load
 npm run release:check
 ```
 
-Public feature claims need a focused test or an explicit compatibility boundary. See [Quality](docs/QUALITY.md).
+Public feature claims need a focused test or an explicit compatibility boundary. See [Quality](../docs/QUALITY.md).
