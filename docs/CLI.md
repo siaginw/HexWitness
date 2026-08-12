@@ -5,6 +5,7 @@ Use `node bin/hexwitness.mjs`, or run `npm link` once for the `hexwitness` comma
 ## Database and service
 
 ```bash
+hexwitness setup [--client codex,cursor] [--viewer none|binary-ninja|ida|both]
 hexwitness init [--db PATH]
 hexwitness ingest FILE [--db PATH]
 hexwitness serve [--db PATH] [--host HOST] [--port PORT]
@@ -48,6 +49,16 @@ hexwitness guide [identity|control_flow|data_flow|object_model|protocol|runtime|
 ```
 
 ## Capture packs
+
+Normal path:
+
+```bash
+hexwitness capture SOURCE_DIR [--out PACK_DIR] [--no-import]
+```
+
+`SOURCE_DIR/capture.json` contains the scenario, build identity, and timestamped markers. Conventional collector filenames are detected automatically. The command builds in a temporary directory, fails cleanly, then publishes only a verified pack.
+
+Advanced primitives:
 
 ```bash
 hexwitness capture init DIR --scenario NAME --build BUILD [--sha SHA256] [--markers a,b] [--spec scenario.json]

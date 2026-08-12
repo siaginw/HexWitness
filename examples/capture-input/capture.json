@@ -1,0 +1,13 @@
+{
+  "schema": "hexwitness-capture-input-v1",
+  "scenario": "request-roundtrip",
+  "build_id": "sha256:replace-with-build-id",
+  "executable_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "markers": [
+    {
+      "name": "request",
+      "note": "perform one action",
+      "ts_utc": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}

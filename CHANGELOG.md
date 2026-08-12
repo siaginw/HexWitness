@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 — 2026-08-11
+
+- Interactive multi-client MCP setup wizard with safe backups, native client commands, viewer selection, and dry-run support.
+- Autostart agent entrypoint eliminating the separate daemon-start step for MCP clients.
+- One-command capture packaging from a conventional collector directory and `capture.json` manifest.
+
 ## 0.2.0 — 2026-08-11
 
 - AI-first investigation, runtime comparison, and live-finding promotion MCP prompts.

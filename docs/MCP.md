@@ -7,7 +7,7 @@ flowchart LR
   D --> E[("evidence.db")]
 ```
 
-Start `npm start`, then copy [`.mcp.json.example`](../.mcp.json.example) into the MCP configuration used by your agent. For a complete memory-plus-viewer workspace, use [`.mcp.ai-first.json.example`](../.mcp.ai-first.json.example) and [the Binary Ninja/IDA bridge guide](VIEWER-MCP.md). `HEXWITNESS_AGENT_SESSION` is hashed before retention.
+Run `hexwitness setup`. The installed `hexwitness-agent` MCP entry starts the local read-only daemon automatically. For manual configuration, use [`.mcp.json.example`](../.mcp.json.example); for a complete memory-plus-viewer workspace, use [`.mcp.ai-first.json.example`](../.mcp.ai-first.json.example) and [the Binary Ninja/IDA bridge guide](VIEWER-MCP.md). `HEXWITNESS_AGENT_SESSION` is hashed before retention.
 
 ## Tool families
 

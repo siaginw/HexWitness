@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hexwitness.dev/schemas/capture-input-v1.schema.json",
+  "title": "HexWitness one-command capture input",
+  "type": "object",
+  "required": ["schema", "scenario", "build_id", "markers"],
+  "properties": {
+    "schema": { "const": "hexwitness-capture-input-v1" },
+    "scenario": { "type": "string", "minLength": 1 },
+    "title": { "type": "string" },
+    "build_id": { "type": "string", "minLength": 1 },
+    "executable_sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "started_utc": { "type": "string", "format": "date-time" },
+    "output": { "type": "string" },
+    "import": { "type": "boolean" },
+    "required_roles": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "required_markers": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "context": { "type": "object" },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "role"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "role": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "media_type": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "markers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "ts_utc"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "note": { "type": "string" },
+          "ts_utc": { "type": "string", "format": "date-time" },
+          "metadata": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -7,7 +7,7 @@
   <a href="LICENSE"><img alt="Apache-2.0 license" src="https://img.shields.io/badge/license-Apache--2.0-7c3aed?style=flat-square"></a>
   <img alt="Node 22.13 or newer" src="https://img.shields.io/badge/node-%E2%89%A522.13-22c55e?style=flat-square">
   <img alt="MCP enabled" src="https://img.shields.io/badge/MCP-enabled-06b6d4?style=flat-square">
-  <img alt="Version 0.2" src="https://img.shields.io/badge/version-0.2-f59e0b?style=flat-square">
+  <img alt="Version 0.3" src="https://img.shields.io/badge/version-0.3-f59e0b?style=flat-square">
 </p>
 
 <p align="center">
@@ -109,26 +109,35 @@ One important boundary: HexWitness does not silently retain every proprietary vi
 
 Requirements: Git and Node.js 22.13 or newer.
 
+Install directly from GitHub and launch the wizard:
+
+```bash
+npm install --global github:siaginw/HexWitness
+hexwitness setup
+```
+
+Or work from a source checkout:
+
 ```bash
 git clone https://github.com/siaginw/HexWitness.git
 cd HexWitness
 npm install
 npm run demo
-npm start
+npm run setup
 ```
 
-The daemon listens on `http://127.0.0.1:7878`. In another terminal:
+The setup wizard asks which AI clients to configure and whether to add Binary Ninja or IDA live inspection. The installed `hexwitness-agent` entrypoint starts the local daemon automatically—no second terminal or background-service ceremony.
 
-```bash
-node bin/hexwitness.mjs search dispatch
-node bin/hexwitness.mjs explain 0x401120 --build toy-v1
-node bin/hexwitness.mjs query dispatch --build toy-v1 --kinds function --edge-kinds call
-node bin/hexwitness.mjs coverage --build toy-v1
+Then ask the agent:
+
+```text
+Use HexWitness to explain 0x401120 in build toy-v1. Separate proven evidence,
+conflicting claims, and missing proof. Drive the investigation yourself.
 ```
 
 The bundled demo is synthetic and redistributable. It contains no third-party binary data.
 
-Connect [`.mcp.json.example`](.mcp.json.example), then ask your agent to investigate. The CLI examples below are available for verification, CI, scripting, and recovery; agents can perform the same query workflow through MCP.
+See the [AI setup wizard](docs/INSTALLER.md) for non-interactive installs, dry runs, safe replacement, and supported clients. Granular CLI commands remain available for CI, scripting, and recovery.
 
 ## Export a binary
 
@@ -151,21 +160,24 @@ Exporters hash the input executable and do not embed its bytes. Decompiled text 
 
 ## Capture runtime behavior
 
-Create one isolated, build-bound evidence pack:
+Put the collector output and a tiny `capture.json` manifest in one folder:
 
-```bash
-hexwitness capture init ./captures/roundtrip --scenario request-roundtrip --build sha256:BUILD --sha SHA256
-hexwitness capture add ./captures/roundtrip ./private/wire.jsonl --role bidirectional-wire
-hexwitness capture add ./captures/roundtrip ./private/hooks.jsonl --role semantic-events
-hexwitness capture add ./captures/roundtrip ./private/screen.mp4 --role screen-recording
-hexwitness capture add ./captures/roundtrip ./private/context.json --role context
-hexwitness capture mark ./captures/roundtrip request --note "perform one action"
-hexwitness capture seal ./captures/roundtrip
-hexwitness capture verify ./captures/roundtrip
-hexwitness capture import ./captures/roundtrip
+```text
+roundtrip/
+├── capture.json
+├── wire.jsonl
+├── hooks.jsonl
+├── screen.mp4
+└── context.json
 ```
 
-The default gate requires bidirectional wire evidence, semantic events, action markers, a short screen recording, and context. Sealing fails closed when any baseline component is missing. Raw payload-like fields become length and SHA-256; common secret fields are removed recursively.
+Then run one command:
+
+```bash
+hexwitness capture ./private/roundtrip
+```
+
+HexWitness detects the conventional files, applies the baseline gate, normalizes, seals, verifies, and imports the result atomically. Missing evidence fails closed without leaving a half-built output. Raw payload-like fields become length and SHA-256; common secret fields are removed recursively.
 
 See [sealed capture packs](docs/CAPTURE-PACKS.md) for collector contracts, directory layout, scenario markers, and privacy rules.
 
@@ -183,16 +195,15 @@ The daemon publishes its current route manifest at `GET /v1/routes`.
 
 ## Connect an agent
 
-Start the daemon, then configure the stdio MCP adapter:
+The setup wizard installs this autostart MCP entry automatically. The equivalent manual configuration is:
 
 ```json
 {
   "mcpServers": {
     "hexwitness": {
       "command": "node",
-      "args": ["/absolute/path/to/HexWitness/bin/hexwitness-mcp.mjs"],
+      "args": ["/absolute/path/to/HexWitness/bin/hexwitness-agent.mjs"],
       "env": {
-        "HEXWITNESS_URL": "http://127.0.0.1:7878",
         "HEXWITNESS_AGENT_SESSION": "my-analysis-project"
       }
     }
@@ -203,6 +214,8 @@ Start the daemon, then configure the stdio MCP adapter:
 An agent starts with health and memory status, selects an exact build, resolves a target, reads its dossier, and only then performs focused graph or capture queries. [`AGENTS.md`](AGENTS.md) contains the full evidence discipline.
 
 For a combined workspace with optional live viewers, copy [`.mcp.ai-first.json.example`](.mcp.ai-first.json.example). The recommended pairings are [BinAssistMCP for Binary Ninja and `ida-pro-mcp`/`idalib-mcp` for IDA](docs/VIEWER-MCP.md). These third-party viewers provide live context; HexWitness provides durable memory, build identity, provenance, contradiction handling, and promotion.
+
+HexWitness's core is Node.js. The small Python files are viewer-native exporters for Binary Ninja, IDA, and Ghidra—not a second command framework users must operate by hand.
 
 ## Evidence model
 
@@ -237,6 +250,7 @@ Read the [privacy model](docs/PRIVACY.md) and [security policy](SECURITY.md).
 | Guide | Purpose |
 |---|---|
 | [Getting started](docs/GETTING-STARTED.md) | Verified first run |
+| [AI setup wizard](docs/INSTALLER.md) | One-command installation for Codex, Claude, Cursor, VS Code, and generic MCP clients |
 | [Capability matrix](docs/CAPABILITY-MATRIX.md) | Generic parity scope and intentional boundaries |
 | [CLI reference](docs/CLI.md) | Commands and environment |
 | [HTTP API](docs/API.md) | Read-only integration surface |
@@ -252,7 +266,7 @@ Read the [privacy model](docs/PRIVACY.md) and [security policy](SECURITY.md).
 
 ## Status
 
-HexWitness 0.2 defines and tests the generic evidence, query, capture-pack, comparison, CLI, REST, and MCP contracts with synthetic fixtures. Vendor GUI adapters remain compatibility-sensitive because their APIs change between releases; the core interchange does not.
+HexWitness 0.3 defines and tests the generic evidence, query, capture-pack, comparison, CLI, REST, MCP, installer, and one-command packaging contracts with synthetic fixtures. Vendor GUI adapters remain compatibility-sensitive because their APIs change between releases; the core interchange does not.
 
 No benchmark, adoption, or universal vendor-version claim is implied beyond the checks published in this repository.
 

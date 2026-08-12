@@ -188,11 +188,11 @@ export function addCaptureArtifact(root, sourcePath, role, options = {}) {
   return entry;
 }
 
-export function addCaptureMarker(root, name, note = null, metadata = {}) {
+export function addCaptureMarker(root, name, note = null, metadata = {}, options = {}) {
   const pack = requirePack(root);
   if (pack.manifest.status !== "active") throw new Error("capture pack is sealed");
   if (!name) throw new Error("marker name is required");
-  const marker = { ordinal: pack.manifest.markers.length + 1, ts_utc: nowUtc(), name, note, metadata };
+  const marker = { ordinal: pack.manifest.markers.length + 1, ts_utc: options.tsUtc ?? nowUtc(), name, note, metadata };
   pack.manifest.markers.push(marker);
   appendFileSync(join(pack.root, "operator-markers.jsonl"), `${JSON.stringify(marker)}\n`, "utf8");
   writeJson(pack.path, pack.manifest);

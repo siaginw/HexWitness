@@ -2,9 +2,8 @@
   "mcpServers": {
     "hexwitness": {
       "command": "node",
-      "args": ["C:/path/to/HexWitness/bin/hexwitness-mcp.mjs"],
+      "args": ["C:/path/to/HexWitness/bin/hexwitness-agent.mjs"],
       "env": {
-        "HEXWITNESS_URL": "http://127.0.0.1:7878",
         "HEXWITNESS_AGENT_SESSION": "replace-with-project-name"
       }
     }
