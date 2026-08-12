@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1 — 2026-08-12
+
+- Added verified npm and official MCP Registry discovery metadata.
+- Declared the packaged stdio launch contract as `hexwitness agent`.
+- Added release-time MCP Registry publication through GitHub OIDC.
+- Made npm the primary installation path in public documentation.
+
 ## 1.0.0 — 2026-08-12
 
 - Declared stable 1.x compatibility policies for CLI commands, REST v1, MCP tools, JSONL v1, and database schemas.

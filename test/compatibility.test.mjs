@@ -9,10 +9,11 @@ import { evidenceSchemaVersion, openEvidenceDb } from "../src/db.mjs";
 import { ingestFile } from "../src/ingest.mjs";
 import { stats } from "../src/query.mjs";
 import { downgradeFixtureToSchema1 } from "../scripts/schema-v1-fixture.mjs";
+import { VERSION } from "../src/constants.mjs";
 
 test("public 1.x contract is machine-readable and explicit", () => {
   const contract = publicContract();
-  assert.equal(contract.version, "1.0.0");
+  assert.equal(contract.version, VERSION);
   assert.equal(contract.stability, "stable-1.x");
   assert.equal(contract.interchange.format, "hexwitness-jsonl-v1");
   assert.equal(contract.database.future_versions, "fail-closed");

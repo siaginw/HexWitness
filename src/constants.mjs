@@ -1,7 +1,7 @@
 export const FORMAT = "hexwitness-jsonl-v1";
 export const SCHEMA_VERSION = 2;
 export const MIN_READABLE_SCHEMA_VERSION = 1;
-export const VERSION = "1.0.0";
+export const VERSION = "1.0.1";
 export const API_VERSION = "v1";
 
 export const RECORD_TYPES = new Set([
