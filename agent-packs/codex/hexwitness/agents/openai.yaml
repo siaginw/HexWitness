@@ -1,0 +1,11 @@
+interface:
+  display_name: "HexWitness"
+  short_description: "Run evidence-first reverse-engineering investigations"
+  default_prompt: "Use $hexwitness to investigate this target from retained evidence first, escalate to live tools only for a specific gap, and clearly separate proof from inference."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "hexwitness"
+      description: "HexWitness durable reverse-engineering evidence and memory server"
+policy:
+  allow_implicit_invocation: true

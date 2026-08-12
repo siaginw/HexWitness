@@ -15,7 +15,20 @@ From a source checkout, use `npm run setup`. The wizard can install for one or s
 - Claude Desktop;
 - generic MCP JSON.
 
-It can also add optional live-viewer entries for Binary Ninja, IDA, or both.
+It also installs the best supported native guidance for each selected agent and can add optional live-viewer entries for Binary Ninja, IDA, or both.
+
+## Agent-native guidance
+
+| Selected client | Installed guidance | Discovery path |
+|---|---|---|
+| Codex | Native `$hexwitness` skill with OpenAI UI metadata and MCP dependency | `~/.codex/skills/hexwitness/` |
+| Claude Code | Native on-demand skill written for Claude's autonomous tool workflow | `~/.claude/skills/hexwitness/` |
+| Cursor | Native Agent Skill written for Cursor Agent | `~/.cursor/skills/hexwitness/` |
+| VS Code / Copilot | Native portable Agent Skill written for Copilot Agent mode | `~/.copilot/skills/hexwitness/` |
+| Claude Desktop | Client-tailored MCP guide resource and prompts | `hexwitness://agent-guide` |
+| Generic MCP | Portable guide beside the generated MCP JSON plus MCP guide resource | `hexwitness-agent-instructions.md` |
+
+Native skills load on demand, so they do not consume every conversation's context. Their descriptions trigger on binary analysis, protocol reconstruction, runtime comparison, object-model mapping, evidence gaps, and live-finding promotion. Each pack uses client-native terminology while enforcing the same build identity, evidence, privacy, and read-only escalation contract.
 
 ## What the wizard does
 
@@ -26,7 +39,8 @@ It can also add optional live-viewer entries for Binary Ninja, IDA, or both.
 5. otherwise merges only HexWitness entries into the existing MCP JSON;
 6. creates a timestamped backup before editing an existing JSON file;
 7. refuses to replace an existing native MCP entry unless `--force` is explicit;
-8. installs the `hexwitness-agent` entrypoint, which starts the local read-only daemon automatically.
+8. installs or updates the selected client's tailored HexWitness skill/guide, backing up an existing copy under `~/.hexwitness/backups/agent-packs/`;
+9. installs the `hexwitness-agent` entrypoint, which starts the local read-only daemon automatically.
 
 The wizard never installs or downloads a commercial viewer. Binary Ninja and IDA integrations remain explicit, local, third-party dependencies.
 
@@ -53,7 +67,7 @@ Use `--force` only when intentionally replacing an existing `hexwitness`, `binar
 
 | Component | Ownership |
 |---|---|
-| HexWitness evidence MCP, daemon, setup wizard, capture packer | First-party HexWitness |
+| HexWitness evidence MCP, daemon, setup wizard, capture packer, and tailored agent skills | First-party HexWitness |
 | Binary Ninja and IDA JSONL exporters | First-party HexWitness |
 | Binary Ninja live control | Third-party [BinAssistMCP](https://github.com/symgraph/BinAssistMCP) |
 | IDA live/headless control | Third-party [`ida-pro-mcp` / `idalib-mcp`](https://github.com/mrexodia/ida-pro-mcp) |

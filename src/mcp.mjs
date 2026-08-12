@@ -1,17 +1,30 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { fileURLToPath } from "node:url";
 import { DaemonClient } from "./mcp-client.mjs";
 import { VERSION } from "./constants.mjs";
+import { NATIVE_SKILL_CLIENTS, readAgentGuidance } from "./agent-guidance.mjs";
 
 function content(value) {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
 }
 
 export function createMcpServer(client = new DaemonClient()) {
+  const agentClient = process.env.HEXWITNESS_AGENT_CLIENT ?? "generic";
+  const agentGuide = readAgentGuidance(fileURLToPath(new URL("..", import.meta.url)), agentClient);
+  const guidanceInstruction = NATIVE_SKILL_CLIENTS.includes(agentClient)
+    ? `Use the installed native hexwitness skill when this workflow is relevant. The same client-tailored guide is available at hexwitness://agent-guide.`
+    : `Apply this client-tailored workflow:\n\n${agentGuide}`;
   const server = new McpServer({ name: "hexwitness", version: VERSION }, {
-    instructions: `HexWitness is durable evidence memory for AI-led reverse engineering. Begin every investigation with hexwitness_health, hexwitness_memory_status, and hexwitness_builds. Resolve uncertain names with hexwitness_search or hexwitness_query before calling hexwitness_explain. Keep every address, class, UUID, type, offset, graph, and capture query scoped to the exact build. Use retained evidence before a live Binary Ninja, IDA, debugger, or instrumentation tool. If memory cannot answer the question, call hexwitness_gap_report and hexwitness_dump_guide, inspect only the smallest missing scope in the live tool, then request a bounded export and ingestion so the result becomes durable. Treat live-viewer output as provisional until promoted. Treat claims as hypotheses unless supported by evidence. Report contradictions rather than silently selecting one value. Never rename, patch, or otherwise mutate a live analysis database unless the user explicitly authorizes it.`,
+    instructions: `HexWitness is durable evidence memory for AI-led reverse engineering. ${guidanceInstruction}`,
   });
+
+  server.registerResource("hexwitness-agent-guide", "hexwitness://agent-guide", {
+    title: `HexWitness workflow for ${agentClient}`,
+    description: "Client-tailored evidence-first investigation workflow installed with HexWitness.",
+    mimeType: "text/markdown",
+  }, async (uri) => ({ contents: [{ uri: uri.href, mimeType: "text/markdown", text: agentGuide }] }));
 
   server.registerTool("hexwitness_health", {
     title: "HexWitness health",

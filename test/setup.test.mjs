@@ -9,12 +9,14 @@ test("setup definitions combine autostart memory and optional live viewers", () 
   const servers = buildServerDefinitions({
     agentEntry: "./bin/hexwitness-agent.mjs",
     session: "fixture",
+    client: "codex",
     viewer: "both",
     idaDirectory: "./ida-pro-mcp",
   });
   assert.equal(servers.hexwitness.command, process.execPath);
   assert.equal(servers.hexwitness.args[0], resolve("./bin/hexwitness-agent.mjs"));
   assert.equal(servers.hexwitness.env.HEXWITNESS_AGENT_SESSION, "fixture");
+  assert.equal(servers.hexwitness.env.HEXWITNESS_AGENT_CLIENT, "codex");
   assert.equal(servers.binary_ninja_live.url, "http://127.0.0.1:9090/mcp");
   assert.match(servers.ida_live.args.join(" "), /idalib-mcp --stdio/);
 });

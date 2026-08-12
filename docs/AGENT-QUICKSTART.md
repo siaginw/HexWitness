@@ -8,7 +8,7 @@ Run the setup wizard once:
 hexwitness setup
 ```
 
-The installed `hexwitness-agent` MCP entry starts the local read-only daemon automatically. Manual configuration remains available through [`.mcp.json.example`](../.mcp.json.example).
+The installed `hexwitness-agent` MCP entry starts the local read-only daemon automatically. Setup also installs the selected client's native HexWitness skill when supported. Invoke `$hexwitness` in Codex or `/hexwitness` in skill-aware clients, or simply describe a relevant investigation and let the agent load it automatically. Manual configuration remains available through [`.mcp.json.example`](../.mcp.json.example).
 
 To add live Binary Ninja or IDA inspection, use [`.mcp.ai-first.json.example`](../.mcp.ai-first.json.example). HexWitness remains the memory authority; the viewer is consulted only for explicit gaps.
 
