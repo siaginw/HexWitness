@@ -24,7 +24,7 @@ HexWitness reproduces the reusable workflow of a mature reverse-engineering evid
 | Capture analysis | List, detail, timeline, search, graph, family deltas, first divergence | Complete |
 | Coverage | Static depth, evidence classes, runtime captures, open gaps | Complete |
 | Agent API | Read-only REST daemon, route manifest, MCP tools, investigation/runtime-comparison/live-promotion prompts | Complete |
-| Agent onboarding | One wizard configures Codex, Claude Code, Cursor, VS Code, Claude Desktop, or generic MCP clients | Complete |
+| Agent onboarding | One wizard configures MCP plus tailored native skills/guides for Codex, Claude Code, Cursor, VS Code, Claude Desktop, or generic clients | Complete |
 | Live viewer orchestration | Memory-first policy and integration recipes for Binary Ninja and IDA MCP bridges | Complete contract; third-party viewer compatibility varies |
 | Durable memory | Evidence-first reuse, visible memory status, idempotent promotion, privacy-separated activity history | Complete |
 | Human API | CLI for ingest, query, object model, graph, capture lifecycle, compare, and doctor | Complete |

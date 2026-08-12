@@ -7,7 +7,7 @@
   <a href="LICENSE"><img alt="Apache-2.0 license" src="https://img.shields.io/badge/license-Apache--2.0-7c3aed?style=flat-square"></a>
   <img alt="Node 22.13 or newer" src="https://img.shields.io/badge/node-%E2%89%A522.13-22c55e?style=flat-square">
   <img alt="MCP enabled" src="https://img.shields.io/badge/MCP-enabled-06b6d4?style=flat-square">
-  <img alt="Version 0.3" src="https://img.shields.io/badge/version-0.3-f59e0b?style=flat-square">
+  <img alt="Version 0.4" src="https://img.shields.io/badge/version-0.4-f59e0b?style=flat-square">
 </p>
 
 <p align="center">
@@ -126,7 +126,7 @@ npm run demo
 npm run setup
 ```
 
-The setup wizard asks which AI clients to configure and whether to add Binary Ninja or IDA live inspection. The installed `hexwitness-agent` entrypoint starts the local daemon automatically—no second terminal or background-service ceremony.
+The setup wizard asks which AI clients to configure and whether to add Binary Ninja or IDA live inspection. It installs a client-native HexWitness skill for Codex, Claude Code, Cursor, and GitHub Copilot, with wording and discovery paths tailored to each agent. Claude Desktop and generic MCP clients receive the same workflow as an MCP guide. The installed `hexwitness-agent` entrypoint starts the local daemon automatically—no second terminal or background-service ceremony.
 
 Then ask the agent:
 
@@ -250,7 +250,7 @@ Read the [privacy model](docs/PRIVACY.md) and [security policy](SECURITY.md).
 | Guide | Purpose |
 |---|---|
 | [Getting started](docs/GETTING-STARTED.md) | Verified first run |
-| [AI setup wizard](docs/INSTALLER.md) | One-command installation for Codex, Claude, Cursor, VS Code, and generic MCP clients |
+| [AI setup wizard](docs/INSTALLER.md) | One-command MCP and tailored skill installation for Codex, Claude, Cursor, VS Code, and generic clients |
 | [Capability matrix](docs/CAPABILITY-MATRIX.md) | Generic parity scope and intentional boundaries |
 | [CLI reference](docs/CLI.md) | Commands and environment |
 | [HTTP API](docs/API.md) | Read-only integration surface |
@@ -266,7 +266,7 @@ Read the [privacy model](docs/PRIVACY.md) and [security policy](SECURITY.md).
 
 ## Status
 
-HexWitness 0.3 defines and tests the generic evidence, query, capture-pack, comparison, CLI, REST, MCP, installer, and one-command packaging contracts with synthetic fixtures. Vendor GUI adapters remain compatibility-sensitive because their APIs change between releases; the core interchange does not.
+HexWitness 0.4 defines and tests the generic evidence, query, capture-pack, comparison, CLI, REST, MCP, installer, tailored agent-skill, and one-command packaging contracts with synthetic fixtures. Vendor GUI adapters remain compatibility-sensitive because their APIs change between releases; the core interchange does not.
 
 No benchmark, adoption, or universal vendor-version claim is implied beyond the checks published in this repository.
 

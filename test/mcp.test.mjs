@@ -32,6 +32,11 @@ test("MCP publishes the agent-first evidence vocabulary", async () => {
     assert.match(investigation.messages[0].content.text, /Drive the investigation/);
     assert.match(investigation.messages[0].content.text, /gap_report/);
     assert.match(investigation.messages[0].content.text, /Do not mutate/);
+
+    const resources = await client.listResources();
+    assert.equal(resources.resources.some((resource) => resource.uri === "hexwitness://agent-guide"), true);
+    const guide = await client.readResource({ uri: "hexwitness://agent-guide" });
+    assert.match(guide.contents[0].text, /HexWitness agent instructions/);
   } finally {
     await client.close();
     await server.close();

@@ -35,8 +35,10 @@ try {
     if (!packageJson.bin?.[bin]) throw new Error(`installed package missing bin entry: ${bin}`);
   }
   const setup = spawnSync(process.execPath, [join(app, "node_modules", "hexwitness", "bin", "hexwitness-setup.mjs"),
-    "--client", "generic", "--viewer", "none", "--output", join(scratch, "mcp.json"), "--dry-run", "--yes"], { encoding: "utf8" });
-  if (setup.status !== 0 || !setup.stdout.includes("Setup plan ready")) throw new Error(setup.stderr || setup.stdout || "installed setup wizard failed");
+    "--client", "codex,claude-code,cursor,vscode,claude-desktop,generic", "--viewer", "none", "--output", join(scratch, "mcp.json"), "--dry-run", "--yes", "--json"], { encoding: "utf8" });
+  if (setup.status !== 0) throw new Error(setup.stderr || setup.stdout || "installed setup wizard failed");
+  const setupResult = JSON.parse(setup.stdout);
+  if (setupResult.results.length !== 6 || setupResult.results.some((entry) => entry.guidance.status !== "planned")) throw new Error(`unexpected setup plan: ${setup.stdout}`);
   console.log(`Package smoke passed: ${packageJson.name}@${packageJson.version}, ${result.accepted} records, doctor healthy, setup wizard healthy.`);
 } finally {
   rmSync(scratch, { recursive: true, force: true });

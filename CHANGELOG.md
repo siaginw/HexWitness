@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 — 2026-08-11
+
+- Client-native HexWitness skills for Codex, Claude Code, Cursor, and GitHub Copilot.
+- Tailored MCP guide resources for Claude Desktop and generic MCP agents.
+- Safe skill updates with timestamped backups and installed-package discovery checks.
+
 ## 0.3.0 — 2026-08-11
 
 - Interactive multi-client MCP setup wizard with safe backups, native client commands, viewer selection, and dry-run support.

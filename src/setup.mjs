@@ -4,18 +4,19 @@ import { homedir, platform } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
+import { installAgentGuidance } from "./agent-guidance.mjs";
 
 export const SUPPORTED_CLIENTS = Object.freeze(["codex", "claude-code", "cursor", "vscode", "claude-desktop", "generic"]);
 export const SUPPORTED_VIEWERS = Object.freeze(["none", "binary-ninja", "ida", "both"]);
 
 function timestamp() { return new Date().toISOString().replace(/[:.]/g, "-"); }
 
-export function buildServerDefinitions({ agentEntry, session = "hexwitness-project", viewer = "none", idaDirectory = "C:/tools/ida-pro-mcp" }) {
+export function buildServerDefinitions({ agentEntry, session = "hexwitness-project", client = "generic", viewer = "none", idaDirectory = "C:/tools/ida-pro-mcp" }) {
   const servers = {
     hexwitness: {
       command: process.execPath,
       args: [resolve(agentEntry)],
-      env: { HEXWITNESS_AGENT_SESSION: session },
+      env: { HEXWITNESS_AGENT_SESSION: session, HEXWITNESS_AGENT_CLIENT: client },
     },
   };
   if (["binary-ninja", "both"].includes(viewer)) servers.binary_ninja_live = { url: "http://127.0.0.1:9090/mcp" };
@@ -135,27 +136,33 @@ export async function runSetup(args = process.argv.slice(2), dependencies = {}) 
     if (!SUPPORTED_VIEWERS.includes(viewer)) throw new Error(`unsupported viewer: ${viewer}`);
     const root = resolve(import.meta.dirname, "..");
     const agentEntry = resolve(root, "bin", "hexwitness-agent.mjs");
-    const servers = buildServerDefinitions({ agentEntry, session: options.session, viewer, idaDirectory: options.idaDirectory });
-    if (!options.json) output.write(`\nHexWitness setup plan\n  clients: ${clients.join(", ")}\n  viewer: ${viewer}\n  MCP servers: ${Object.keys(servers).join(", ")}\n`);
+    const serverNames = new Set(["hexwitness"]);
+    if (["binary-ninja", "both"].includes(viewer)) serverNames.add("binary_ninja_live");
+    if (["ida", "both"].includes(viewer)) serverNames.add("ida_live");
+    if (!options.json) output.write(`\nHexWitness setup plan\n  clients: ${clients.join(", ")}\n  viewer: ${viewer}\n  MCP servers: ${[...serverNames].join(", ")}\n  agent guidance: tailored skill or MCP guide for every selected client\n`);
     if (!options.yes && !options.dryRun) {
       const confirmed = (await rl.question("Apply this plan? [y/N] ")).trim().toLowerCase();
       if (!["y", "yes"].includes(confirmed)) return { status: "cancelled", clients, viewer };
     }
     const results = [];
     for (const client of clients) {
+      const servers = buildServerDefinitions({ agentEntry, session: options.session, client, viewer, idaDirectory: options.idaDirectory });
+      let mcp;
       if (["codex", "claude-code", "vscode"].includes(client)) {
-        results.push({ client, method: "native-cli", entries: runNative(client, servers, options) });
+        mcp = { method: "native-cli", entries: runNative(client, servers, options) };
       } else if (["cursor", "claude-desktop"].includes(client)) {
-        results.push({ client, method: "json-merge", ...mergeMcpJson(defaultClientPath(client), servers, options) });
+        mcp = { method: "json-merge", ...mergeMcpJson(defaultClientPath(client), servers, options) };
       } else {
         const target = options.output ? resolve(options.output) : resolve("hexwitness.mcp.json");
-        results.push({ client, method: "json-merge", ...mergeMcpJson(target, servers, options) });
+        mcp = { method: "json-merge", ...mergeMcpJson(target, servers, options) };
       }
+      const guidance = installAgentGuidance(client, root, { ...options, output: client === "generic" ? options.output : undefined });
+      results.push({ client, mcp, guidance });
     }
     const notes = [];
     if (["binary-ninja", "both"].includes(viewer)) notes.push("Install BinAssistMCP from Binary Ninja's Plugin Manager and keep its Streamable HTTP endpoint on localhost:9090/mcp.");
     if (["ida", "both"].includes(viewer)) notes.push(`Install mrexodia/ida-pro-mcp with idalib activated; expected source directory: ${resolve(options.idaDirectory)}.`);
-    return { status: options.dryRun ? "planned" : "installed", clients, viewer, servers: Object.keys(servers), results, notes };
+    return { status: options.dryRun ? "planned" : "installed", clients, viewer, servers: [...serverNames], results, notes };
   } finally { if (ownsReadline) rl.close(); }
 }
 
@@ -163,6 +170,7 @@ export function formatSetupSummary(result) {
   if (result.status === "cancelled") return "HexWitness setup cancelled.";
   const action = result.status === "planned" ? "Setup plan ready" : "HexWitness is ready";
   const lines = [action, `  AI clients: ${result.clients.join(", ")}`, `  MCP servers: ${result.servers.join(", ")}`];
+  for (const entry of result.results ?? []) lines.push(`  ${entry.client} guidance: ${entry.guidance.kind} -> ${entry.guidance.target}`);
   for (const note of result.notes ?? []) lines.push(`  Next: ${note}`);
   if (result.status === "installed") lines.push("  Restart the configured AI client, then ask it to use HexWitness.");
   return lines.join("\n");
