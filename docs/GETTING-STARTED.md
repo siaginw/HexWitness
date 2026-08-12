@@ -42,23 +42,15 @@ node bin/hexwitness.mjs contradictions --build toy-v1
 
 The contradiction query should return the two synthetic claims about message kinds 7 and 8. That disagreement is deliberate—it demonstrates that HexWitness preserves uncertainty.
 
-## Start the daemon
+## Connect your AI
 
 ```bash
-npm start
+npm run setup
 ```
 
-Open `http://127.0.0.1:7878/v1/health`, or run:
+Choose one or more AI clients and an optional Binary Ninja or IDA viewer. The generated MCP entry uses `hexwitness-agent`, which initializes local state when needed and starts the read-only daemon automatically.
 
-```bash
-curl http://127.0.0.1:7878/v1/health
-```
-
-Stop the daemon with `Ctrl+C`.
-
-## Connect MCP
-
-Copy `.mcp.json.example` into the configuration used by your MCP client. Replace the script path with an absolute path on your machine. Start the daemon before opening the agent session.
+Use [the setup guide](INSTALLER.md) for non-interactive flags or manual configuration.
 
 Ask the agent:
 
@@ -79,4 +71,4 @@ Keep generated JSONL and databases out of public repositories unless you have ex
 
 ## Verify a capture pack
 
-After the synthetic workflow, follow [sealed capture packs](CAPTURE-PACKS.md) with evidence from a binary you are authorized to inspect. A complete pack proves the capture lifecycle, safe normalization, checksums, runtime timeline, and import path independently from any target-specific decoder.
+After the synthetic workflow, place `capture.json`, `wire.jsonl`, `hooks.jsonl`, `screen.mp4`, and `context.json` in one private directory, then run `hexwitness capture DIRECTORY`. Follow [sealed capture packs](CAPTURE-PACKS.md) for the manifest contract and advanced lifecycle controls.

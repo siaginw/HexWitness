@@ -275,4 +275,5 @@ export function createMcpServer(client = new DaemonClient()) {
 export async function startMcp() {
   const server = createMcpServer();
   await server.connect(new StdioServerTransport());
+  return server;
 }

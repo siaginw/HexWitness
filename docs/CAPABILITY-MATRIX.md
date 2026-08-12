@@ -19,10 +19,12 @@ HexWitness reproduces the reusable workflow of a mature reverse-engineering evid
 | Evidence gaps | Per-entity gap report plus persistent prioritized worklist | Complete |
 | Runtime capture | Build-bound capture, ordered events, directions, hashes, fields, markers | Complete |
 | Sealed capture packs | Baseline roles, scenario gates, artifact hashes, audit, normalization, verification | Complete |
+| Capture convenience | One command discovers a capture folder, gates it, seals it, verifies it, and imports it atomically | Complete |
 | Runtime graph | Correlation, request/response, marker/event, and object-observation relationships | Complete |
 | Capture analysis | List, detail, timeline, search, graph, family deltas, first divergence | Complete |
 | Coverage | Static depth, evidence classes, runtime captures, open gaps | Complete |
 | Agent API | Read-only REST daemon, route manifest, MCP tools, investigation/runtime-comparison/live-promotion prompts | Complete |
+| Agent onboarding | One wizard configures Codex, Claude Code, Cursor, VS Code, Claude Desktop, or generic MCP clients | Complete |
 | Live viewer orchestration | Memory-first policy and integration recipes for Binary Ninja and IDA MCP bridges | Complete contract; third-party viewer compatibility varies |
 | Durable memory | Evidence-first reuse, visible memory status, idempotent promotion, privacy-separated activity history | Complete |
 | Human API | CLI for ingest, query, object model, graph, capture lifecycle, compare, and doctor | Complete |

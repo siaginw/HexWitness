@@ -15,7 +15,7 @@ HexWitness does not vendor either project below. Their licenses, vendor requirem
 
 ## One AI workspace
 
-Copy [`.mcp.ai-first.json.example`](../.mcp.ai-first.json.example) and adjust absolute paths. It declares three distinct roles:
+Run `hexwitness setup`, or copy [`.mcp.ai-first.json.example`](../.mcp.ai-first.json.example) and adjust absolute paths. It declares three distinct roles:
 
 - `hexwitness`: durable, read-only evidence memory;
 - `binary_ninja_live`: active Binary Ninja context;
@@ -37,8 +37,8 @@ Enable only the viewer you actually use. An MCP client may use a different key t
   "mcpServers": {
     "hexwitness": {
       "command": "node",
-      "args": ["C:/tools/HexWitness/bin/hexwitness-mcp.mjs"],
-      "env": { "HEXWITNESS_URL": "http://127.0.0.1:7878" }
+      "args": ["C:/tools/HexWitness/bin/hexwitness-agent.mjs"],
+      "env": { "HEXWITNESS_AGENT_SESSION": "binary-project" }
     },
     "binary_ninja_live": {
       "url": "http://127.0.0.1:9090/mcp"
@@ -71,8 +71,8 @@ Clone or install the upstream MCP bridge, then use its current `idalib-mcp` entr
   "mcpServers": {
     "hexwitness": {
       "command": "node",
-      "args": ["C:/tools/HexWitness/bin/hexwitness-mcp.mjs"],
-      "env": { "HEXWITNESS_URL": "http://127.0.0.1:7878" }
+      "args": ["C:/tools/HexWitness/bin/hexwitness-agent.mjs"],
+      "env": { "HEXWITNESS_AGENT_SESSION": "binary-project" }
     },
     "ida_live": {
       "command": "uv",

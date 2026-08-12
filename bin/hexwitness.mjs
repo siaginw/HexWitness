@@ -10,6 +10,8 @@ import { gapReport } from "../src/query.mjs";
 import { startDaemon } from "../src/daemon.mjs";
 import { dumpGuide } from "../src/guides.mjs";
 import { addCaptureArtifact, addCaptureMarker, initCapturePack, inspectCapturePack, normalizeCapturePack, sealCapturePack, verifyCapturePack } from "../src/capture-pack.mjs";
+import { packCaptureDirectory } from "../src/capture-bundle.mjs";
+import { formatSetupSummary, runSetup } from "../src/setup.mjs";
 import { analysisSlices, captureDetail, captureGraph, captureSearch, captureTimeline, classDetail, compareBuilds, compareCaptures, coverage, dataflow, decompSearch, edgeKinds, evidenceFor, fieldOffsets, functionInventory, gapWorklist, genericQuery, listBuilds, listCaptures, memoryStatus, metadataLookup, neighbors, objectModel, reachable, shortestPath, typeRegistry, uuidLookup, vtableDetail, xrefs } from "../src/query.mjs";
 
 function option(args, name, fallback = null) {
@@ -24,6 +26,7 @@ function help() {
 
 Usage:
   hexwitness init [--db PATH]
+  hexwitness setup [--client codex,cursor] [--viewer none|binary-ninja|ida|both]
   hexwitness ingest FILE [--db PATH]
   hexwitness query [TEXT] [--build BUILD] [--kinds function,class] [--edge-kinds call,reads]
   hexwitness serve [--db PATH] [--host HOST] [--port PORT]
@@ -63,6 +66,7 @@ Usage:
   hexwitness capture normalize|inspect|verify DIR
   hexwitness capture seal DIR [--allow-incomplete]
   hexwitness capture import DIR [--db PATH]
+  hexwitness capture SOURCE_DIR [--out PACK_DIR] [--no-import]
   hexwitness stats
   hexwitness doctor
   hexwitness demo [--reset]
@@ -80,6 +84,11 @@ try {
     case "init": {
       const db = openEvidenceDb(config.evidenceDb); db.close();
       print({ ok: true, database: config.evidenceDb }); break;
+    }
+    case "setup": {
+      const result = await runSetup(args.slice(1));
+      if (args.includes("--json")) print(result); else process.stdout.write(`${formatSetupSummary(result)}\n`);
+      break;
     }
     case "ingest": {
       if (!args[1]) throw new Error("ingest requires a JSONL file");
@@ -164,9 +173,15 @@ try {
     case "capture-search": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(captureSearch(db, { q: args[1] ?? "", captureId: option(args, "--capture"), direction: option(args, "--direction"), kind: option(args, "--kind"), limit: option(args, "--limit") })); db.close(); break; }
     case "capture-graph": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(captureGraph(db, args[1], { kind: option(args, "--kind"), limit: option(args, "--limit") })); db.close(); break; }
     case "capture": {
-      const action = args[1]; const root = args[2];
-      if (!action || !root) throw new Error("capture requires ACTION and DIR");
-      if (action === "init") {
+      const lifecycleActions = new Set(["init", "add", "mark", "normalize", "inspect", "verify", "seal", "import", "pack"]);
+      const direct = args[1] && !lifecycleActions.has(args[1]);
+      const action = direct ? "pack" : args[1]; const root = direct ? args[1] : args[2];
+      if (!action || !root) throw new Error("capture requires a source directory");
+      if (action === "pack") print(await packCaptureDirectory(root, {
+        output: option(args, "--out"), evidenceDb: option(args, "--db") ?? undefined,
+        import: !args.includes("--no-import"), allowIncomplete: args.includes("--allow-incomplete"),
+      }));
+      else if (action === "init") {
         const specPath = option(args, "--spec");
         print(initCapturePack(root, { scenario: option(args, "--scenario"), title: option(args, "--title"), buildId: option(args, "--build"), executableSha256: option(args, "--sha"), requiredRoles: option(args, "--required")?.split(",").filter(Boolean), requiredMarkers: option(args, "--markers")?.split(",").filter(Boolean), scenarioSpec: specPath ? JSON.parse(readFileSync(resolve(specPath), "utf8")) : null }));
       }

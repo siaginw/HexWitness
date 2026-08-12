@@ -16,7 +16,44 @@ Scenario-specific required markers can be added at initialization. A project may
 
 Pass `--spec scenario.json` to derive the scenario name, title, required roles, and required step markers from the machine-readable [`scenario-v1`](../schemas/scenario-v1.schema.json) contract.
 
-## Lifecycle
+## One-command lifecycle
+
+Collectors write one directory:
+
+```text
+roundtrip/
+├── capture.json
+├── wire.jsonl
+├── hooks.jsonl
+├── screen.mp4
+└── context.json
+```
+
+`capture.json` supplies build identity and markers:
+
+```json
+{
+  "schema": "hexwitness-capture-input-v1",
+  "scenario": "request-roundtrip",
+  "build_id": "sha256:BUILD",
+  "executable_sha256": "64_HEX_CHARACTERS",
+  "markers": [
+    { "name": "request", "note": "perform one action", "ts_utc": "2026-01-01T00:00:00.000Z" }
+  ]
+}
+```
+
+Package, validate, seal, verify, and import:
+
+```bash
+hexwitness capture ./private/roundtrip
+```
+
+Conventional filenames are detected automatically. Use the optional `artifacts` array when names differ. The source contract is machine-readable as [`capture-input-v1`](../schemas/capture-input-v1.schema.json).
+
+## Granular lifecycle
+
+The lower-level commands remain available for custom collectors, interactive marker insertion, and recovery:
 
 ```bash
 hexwitness capture init ./captures/login-roundtrip \

@@ -31,7 +31,13 @@ try {
   const diagnosis = JSON.parse(doctor.stdout);
   if (!diagnosis.ok || !diagnosis.checks.every((check) => check.ok)) throw new Error(`unexpected doctor result: ${doctor.stdout}`);
   const packageJson = JSON.parse(readFileSync(join(app, "node_modules", "hexwitness", "package.json"), "utf8"));
-  console.log(`Package smoke passed: ${packageJson.name}@${packageJson.version}, ${result.accepted} records, doctor healthy.`);
+  for (const bin of ["hexwitness", "hexwitness-mcp", "hexwitness-agent", "hexwitness-setup"]) {
+    if (!packageJson.bin?.[bin]) throw new Error(`installed package missing bin entry: ${bin}`);
+  }
+  const setup = spawnSync(process.execPath, [join(app, "node_modules", "hexwitness", "bin", "hexwitness-setup.mjs"),
+    "--client", "generic", "--viewer", "none", "--output", join(scratch, "mcp.json"), "--dry-run", "--yes"], { encoding: "utf8" });
+  if (setup.status !== 0 || !setup.stdout.includes("Setup plan ready")) throw new Error(setup.stderr || setup.stdout || "installed setup wizard failed");
+  console.log(`Package smoke passed: ${packageJson.name}@${packageJson.version}, ${result.accepted} records, doctor healthy, setup wizard healthy.`);
 } finally {
   rmSync(scratch, { recursive: true, force: true });
 }

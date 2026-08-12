@@ -2,13 +2,13 @@
 
 ## Connect once
 
-Start the query daemon:
+Run the setup wizard once:
 
 ```sh
-hexwitness serve
+hexwitness setup
 ```
 
-Configure the MCP server using [`.mcp.json.example`](../.mcp.json.example). The MCP process talks to the daemon; it does not open the database itself.
+The installed `hexwitness-agent` MCP entry starts the local read-only daemon automatically. Manual configuration remains available through [`.mcp.json.example`](../.mcp.json.example).
 
 To add live Binary Ninja or IDA inspection, use [`.mcp.ai-first.json.example`](../.mcp.ai-first.json.example). HexWitness remains the memory authority; the viewer is consulted only for explicit gaps.
 

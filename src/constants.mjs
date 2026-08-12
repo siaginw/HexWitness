@@ -1,6 +1,6 @@
 export const FORMAT = "hexwitness-jsonl-v1";
 export const SCHEMA_VERSION = 2;
-export const VERSION = "0.2.0";
+export const VERSION = "0.3.0";
 
 export const RECORD_TYPES = new Set([
   "build",
