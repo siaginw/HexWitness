@@ -64,6 +64,8 @@ Ask the agent:
 
 > Use HexWitness to explain `0x401120` in build `toy-v1`. Separate proven evidence from conflicting claims.
 
+The agent should choose and sequence the tools. You should not need to translate the question into CLI commands. Continue with [AI-first workflows](AI-FIRST-WORKFLOWS.md), or connect a [Binary Ninja/IDA live MCP bridge](VIEWER-MCP.md) for bounded fallback inspection.
+
 ## Import your first export
 
 Run one adapter from [`adapters/`](../adapters/README.md), then:

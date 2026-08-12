@@ -22,7 +22,8 @@ HexWitness reproduces the reusable workflow of a mature reverse-engineering evid
 | Runtime graph | Correlation, request/response, marker/event, and object-observation relationships | Complete |
 | Capture analysis | List, detail, timeline, search, graph, family deltas, first divergence | Complete |
 | Coverage | Static depth, evidence classes, runtime captures, open gaps | Complete |
-| Agent API | Read-only REST daemon, route manifest, MCP tools, canonical investigation prompt | Complete |
+| Agent API | Read-only REST daemon, route manifest, MCP tools, investigation/runtime-comparison/live-promotion prompts | Complete |
+| Live viewer orchestration | Memory-first policy and integration recipes for Binary Ninja and IDA MCP bridges | Complete contract; third-party viewer compatibility varies |
 | Durable memory | Evidence-first reuse, visible memory status, idempotent promotion, privacy-separated activity history | Complete |
 | Human API | CLI for ingest, query, object model, graph, capture lifecycle, compare, and doctor | Complete |
 | Static tool bridges | Binary Ninja, IDA, and Ghidra exporters through vendor-neutral JSONL | Complete contract; compatibility varies by vendor version |
