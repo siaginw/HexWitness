@@ -4,10 +4,13 @@
 
 - `npm ci`
 - `npm run check`
+- `npm run test:coverage`
 - `npm run public:audit`
 - `npm audit --audit-level=high`
 - `npm run test:package`
+- `npm run pack:dry`
 - Confirm the demo runs from the installed package, not only the source checkout.
+- Confirm the installed package completes CLI → DB → daemon → MCP → evidence query.
 - Confirm the GitHub Actions operating-system and Node.js matrix passes.
 
 ## Legal and provenance

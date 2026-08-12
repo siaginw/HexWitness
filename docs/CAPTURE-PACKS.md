@@ -76,7 +76,9 @@ hexwitness capture verify ./captures/login-roundtrip
 hexwitness capture import ./captures/login-roundtrip
 ```
 
-`seal` fails when a role, required marker, artifact, or hash is missing. `--allow-incomplete` exists for exploratory evidence; it labels the pack `incomplete` and must not be treated as proof.
+`seal` fails when a required role or marker is missing. `--allow-incomplete` can retain that exploratory evidence and labels the pack `incomplete`. It never bypasses integrity errors: empty, missing, escaped, size-mismatched, or hash-mismatched artifacts still fail.
+
+Normalization and sealing are recoverable. If normalization throws, the manifest returns to `active` instead of leaving a half-sealed pack.
 
 ## Directory layout
 

@@ -10,4 +10,13 @@ Every importer must:
 4. Document optional sensitive fields.
 5. Include a synthetic fixture and idempotency test.
 
-Run `npm run check` before opening a pull request.
+Before opening a pull request:
+
+```bash
+npm run check
+npm run public:audit
+npm audit --audit-level=high
+npm run test:package
+```
+
+Public feature claims need a focused test or an explicit compatibility boundary. See [Quality](docs/QUALITY.md).

@@ -56,6 +56,8 @@ When blocked, do not ask for “more data.” Specify:
 - whether decompiler text is necessary;
 - a short runtime action sequence if dynamic proof is required.
 
+For a runtime capture, preserve the full baseline: exact build identity, bidirectional wire, semantic events, timestamped action markers, screen recording, and context. Normalize, seal, and verify it before using it as proof.
+
 ## Confidence language
 
 | Label | Meaning |

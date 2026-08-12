@@ -22,6 +22,8 @@ Run `hexwitness setup`. The installed `hexwitness-agent` MCP entry starts the lo
 
 All tool names carry the `hexwitness_` prefix.
 
+Every tool advertises MCP annotations declaring it read-only, non-destructive, idempotent, and closed-world. These annotations help clients plan safely; the daemon independently enforces GET-only behavior.
+
 ## Canonical agent sequence
 
 1. `hexwitness_health`

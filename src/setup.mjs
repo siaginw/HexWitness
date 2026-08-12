@@ -8,10 +8,20 @@ import { installAgentGuidance } from "./agent-guidance.mjs";
 
 export const SUPPORTED_CLIENTS = Object.freeze(["codex", "claude-code", "cursor", "vscode", "claude-desktop", "generic"]);
 export const SUPPORTED_VIEWERS = Object.freeze(["none", "binary-ninja", "ida", "both"]);
+export const BINARY_NINJA_MCP_URL = "http://127.0.0.1:24642/mcp";
 
 function timestamp() { return new Date().toISOString().replace(/[:.]/g, "-"); }
 
-export function buildServerDefinitions({ agentEntry, session = "hexwitness-project", client = "generic", viewer = "none", idaDirectory = "C:/tools/ida-pro-mcp" }) {
+function localViewerUrl(value) {
+  let url;
+  try { url = new URL(value); } catch { throw new Error(`invalid Binary Ninja MCP URL: ${value}`); }
+  if (!["http:", "https:"].includes(url.protocol) || !["127.0.0.1", "localhost", "::1", "[::1]"].includes(url.hostname)) {
+    throw new Error("Binary Ninja MCP URL must use HTTP(S) on localhost");
+  }
+  return url.href.replace(/\/$/, "");
+}
+
+export function buildServerDefinitions({ agentEntry, session = "hexwitness-project", client = "generic", viewer = "none", binaryNinjaUrl = BINARY_NINJA_MCP_URL, idaDirectory = "C:/tools/ida-pro-mcp" }) {
   const servers = {
     hexwitness: {
       command: process.execPath,
@@ -19,7 +29,7 @@ export function buildServerDefinitions({ agentEntry, session = "hexwitness-proje
       env: { HEXWITNESS_AGENT_SESSION: session, HEXWITNESS_AGENT_CLIENT: client },
     },
   };
-  if (["binary-ninja", "both"].includes(viewer)) servers.binary_ninja_live = { url: "http://127.0.0.1:9090/mcp" };
+  if (["binary-ninja", "both"].includes(viewer)) servers.binary_ninja_live = { url: localViewerUrl(binaryNinjaUrl) };
   if (["ida", "both"].includes(viewer)) servers.ida_live = {
     command: "uv",
     args: ["run", "--directory", resolve(idaDirectory), "idalib-mcp", "--stdio"],
@@ -104,6 +114,7 @@ function parseOptions(args) {
   return {
     clients: option("--client")?.split(",").map((item) => item.trim()).filter(Boolean),
     viewer: option("--viewer"),
+    binaryNinjaUrl: option("--binary-ninja-url", BINARY_NINJA_MCP_URL),
     idaDirectory: option("--ida-dir", "C:/tools/ida-pro-mcp"),
     session: option("--session", "hexwitness-project"),
     output: option("--output"),
@@ -140,13 +151,13 @@ export async function runSetup(args = process.argv.slice(2), dependencies = {}) 
     if (["binary-ninja", "both"].includes(viewer)) serverNames.add("binary_ninja_live");
     if (["ida", "both"].includes(viewer)) serverNames.add("ida_live");
     if (!options.json) output.write(`\nHexWitness setup plan\n  clients: ${clients.join(", ")}\n  viewer: ${viewer}\n  MCP servers: ${[...serverNames].join(", ")}\n  agent guidance: tailored skill or MCP guide for every selected client\n`);
-    if (!options.yes && !options.dryRun) {
+    if (!options.yes && !options.dryRun && !options.json) {
       const confirmed = (await rl.question("Apply this plan? [y/N] ")).trim().toLowerCase();
       if (!["y", "yes"].includes(confirmed)) return { status: "cancelled", clients, viewer };
     }
     const results = [];
     for (const client of clients) {
-      const servers = buildServerDefinitions({ agentEntry, session: options.session, client, viewer, idaDirectory: options.idaDirectory });
+      const servers = buildServerDefinitions({ agentEntry, session: options.session, client, viewer, binaryNinjaUrl: options.binaryNinjaUrl, idaDirectory: options.idaDirectory });
       let mcp;
       if (["codex", "claude-code", "vscode"].includes(client)) {
         mcp = { method: "native-cli", entries: runNative(client, servers, options) };
@@ -160,8 +171,8 @@ export async function runSetup(args = process.argv.slice(2), dependencies = {}) 
       results.push({ client, mcp, guidance });
     }
     const notes = [];
-    if (["binary-ninja", "both"].includes(viewer)) notes.push("Install BinAssistMCP from Binary Ninja's Plugin Manager and keep its Streamable HTTP endpoint on localhost:9090/mcp.");
-    if (["ida", "both"].includes(viewer)) notes.push(`Install mrexodia/ida-pro-mcp with idalib activated; expected source directory: ${resolve(options.idaDirectory)}.`);
+    if (["binary-ninja", "both"].includes(viewer)) notes.push(`Enable Binary Ninja's official MCP server, start it from Plugins > MCP, and confirm its connection URL (configured: ${options.binaryNinjaUrl}).`);
+    if (["ida", "both"].includes(viewer)) notes.push(`Install the Hex-Rays-endorsed mrexodia/ida-pro-mcp bridge with idalib activated; expected source directory: ${resolve(options.idaDirectory)}.`);
     return { status: options.dryRun ? "planned" : "installed", clients, viewer, servers: [...serverNames], results, notes };
   } finally { if (ownsReadline) rl.close(); }
 }

@@ -67,7 +67,8 @@ export async function packCaptureDirectory(sourcePath, options = {}) {
     for (const marker of spec.markers) addCaptureMarker(building, marker.name, marker.note, marker.metadata ?? {}, { tsUtc: marker.ts_utc });
     const sealed = sealCapturePack(building, { allowIncomplete: options.allowIncomplete === true });
     const verification = verifyCapturePack(building);
-    if (!verification.passed) throw new Error(`capture verification failed: ${[...verification.errors, ...verification.missing_roles, ...verification.missing_markers].join(", ")}`);
+    const explicitlyIncomplete = options.allowIncomplete === true && sealed.manifest.quality === "incomplete" && verification.errors.length === 0;
+    if (!verification.passed && !explicitlyIncomplete) throw new Error(`capture verification failed: ${[...verification.errors, ...verification.missing_roles, ...verification.missing_markers].join(", ")}`);
     renameSync(building, finalOutput);
     let imported = null;
     if (options.import !== false && spec.import !== false) {

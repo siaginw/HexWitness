@@ -34,13 +34,27 @@ Set the same URL in `HEXWITNESS_URL` for the MCP adapter.
 
 ## MCP starts but tools fail
 
-The MCP adapter does not open SQLite directly. Confirm the daemon is already running:
+The recommended `hexwitness-agent` entry starts a missing local daemon automatically. First run:
+
+```bash
+hexwitness doctor
+```
+
+If the MCP entry uses the lower-level `hexwitness-mcp` command instead, start the daemon separately and confirm it:
 
 ```bash
 curl http://127.0.0.1:7878/v1/health
 ```
 
 Then verify the MCP environment points at that URL.
+
+For an autostart entry, verify `HEXWITNESS_HOME`, `HEXWITNESS_DB`, host, and port are consistent. A remote `HEXWITNESS_URL` is never started automatically.
+
+## Binary Ninja live tools do not appear
+
+Confirm your Binary Ninja edition includes the official MCP server. Enable `ui.mcp.enabled`, restart Binary Ninja, choose **Plugins → MCP → Start Server**, then copy the exact connection info. The default endpoint is `http://127.0.0.1:24642/mcp`.
+
+If using BinAssistMCP instead, pass its endpoint explicitly with `--binary-ninja-url`.
 
 ## Import rejected with an unsafe numeric address
 

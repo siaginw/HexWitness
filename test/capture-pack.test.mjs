@@ -28,7 +28,7 @@ test("capture packs reject missing baseline, seal with hashes, normalize safely,
     const video = join(root, "screen.mp4");
     const context = join(root, "context.json");
     writeFileSync(wire, `${JSON.stringify({ ts_utc: "2026-01-01T00:00:01.000Z", source: "wire", kind: "message", name: "request", direction: "client_to_server", payload: "private bytes", fields: { correlation_id: 7 } })}\n${JSON.stringify({ format: "hexwitness-jsonl-v1", record: "event", build_id: "wrong-build", capture_id: "wrong-capture", ordinal: 99, ts_utc: "2026-01-01T00:00:02.000Z", source: "wire", kind: "message", name: "response", direction: "server_to_client", body: "private response", fields: { correlation_id: 7 } })}\n`);
-    writeFileSync(semantic, `${JSON.stringify({ ts_utc: "2026-01-01T00:00:01.500Z", source: "hook", kind: "call", name: "dispatch", address: "0x401000", action_id: "send", fields: { object_id: "object-1", token: "must-not-survive" } })}\n`);
+    writeFileSync(semantic, `${JSON.stringify({ ts_utc: "2026-01-01T00:00:01.500Z", source: "hook", kind: "call", name: "dispatch", address: "0x401000", action_id: "send", fields: { object_id: "object-1", token: "must-not-survive", nested: [{ cookie: "also-secret", safe: "kept" }] } })}\n`);
     writeFileSync(video, "synthetic-video-fixture");
     writeFileSync(context, JSON.stringify({ target: "synthetic", operator: "fixture" }));
     addCaptureArtifact(pack, wire, "bidirectional-wire");
@@ -40,7 +40,8 @@ test("capture packs reject missing baseline, seal with hashes, normalize safely,
 
     const normalized = normalizeCapturePack(pack);
     const normalizedText = readFileSync(normalized.output, "utf8");
-    assert.doesNotMatch(normalizedText, /private bytes|private response|must-not-survive/);
+    assert.doesNotMatch(normalizedText, /private bytes|private response|must-not-survive|also-secret/);
+    assert.match(normalizedText, /"safe":"kept"/);
     assert.match(normalizedText, /response_to/);
     const sealed = sealCapturePack(pack);
     assert.equal(sealed.manifest.quality, "accepted");
@@ -55,5 +56,42 @@ test("capture packs reject missing baseline, seal with hashes, normalize safely,
     assert.ok(detail.relationships.length >= 2);
     assert.equal(captureTimeline(db, sealed.manifest.capture_id).length, 3);
     db.close();
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("failed normalization leaves a capture active and recoverable", () => {
+  const root = mkdtempSync(join(tmpdir(), "hexwitness-pack-rollback-"));
+  const pack = join(root, "capture");
+  const malformed = join(root, "semantic.jsonl");
+  try {
+    initCapturePack(pack, { buildId: "fixture-build", scenario: "rollback", requiredRoles: ["semantic-events", "action-markers"] });
+    writeFileSync(malformed, "{not-json}\n");
+    addCaptureArtifact(pack, malformed, "semantic-events");
+    addCaptureMarker(pack, "attempt", "trigger malformed normalization");
+    assert.throws(() => sealCapturePack(pack), /semantic\.jsonl:1/);
+    const manifest = JSON.parse(readFileSync(join(pack, "manifest.json"), "utf8"));
+    assert.equal(manifest.status, "active");
+    assert.equal(manifest.finished_utc, null);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("allow-incomplete permits missing evidence but never corrupt artifacts", () => {
+  const root = mkdtempSync(join(tmpdir(), "hexwitness-pack-incomplete-"));
+  const pack = join(root, "capture");
+  const semantic = join(root, "semantic.jsonl");
+  try {
+    initCapturePack(pack, { buildId: "fixture-build", scenario: "incomplete", requiredRoles: ["semantic-events", "screen-recording", "action-markers"] });
+    writeFileSync(semantic, `${JSON.stringify({ ts_utc: "2026-01-01T00:00:00.000Z", kind: "call", name: "observe" })}\n`);
+    addCaptureArtifact(pack, semantic, "semantic-events");
+    addCaptureMarker(pack, "observe");
+    const sealed = sealCapturePack(pack, { allowIncomplete: true });
+    assert.equal(sealed.manifest.quality, "incomplete");
+
+    const corruptPack = join(root, "corrupt");
+    const empty = join(root, "empty.jsonl");
+    initCapturePack(corruptPack, { buildId: "fixture-build", scenario: "corrupt", requiredRoles: ["semantic-events"] });
+    writeFileSync(empty, "");
+    addCaptureArtifact(corruptPack, empty, "semantic-events");
+    assert.throws(() => sealCapturePack(corruptPack, { allowIncomplete: true }), /integrity gate failed/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

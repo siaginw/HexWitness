@@ -6,6 +6,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -82,15 +83,20 @@ function mediaType(path) {
   })[extname(path).toLowerCase()] ?? "application/octet-stream";
 }
 
-function sanitizedFields(input) {
-  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+function sanitizedValue(value) {
+  if (Array.isArray(value)) return value.map((item) => sanitizedValue(item));
+  if (!value || typeof value !== "object") return value;
   const out = {};
-  for (const [key, value] of Object.entries(input)) {
+  for (const [key, nested] of Object.entries(value)) {
     if (SENSITIVE_KEYS.test(key) || PAYLOAD_KEYS.test(key)) continue;
-    if (value && typeof value === "object" && !Array.isArray(value)) out[key] = sanitizedFields(value);
-    else out[key] = value;
+    out[key] = sanitizedValue(nested);
   }
   return out;
+}
+
+function sanitizedFields(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+  return sanitizedValue(input);
 }
 
 function payloadSummary(raw) {
@@ -137,7 +143,7 @@ export function initCapturePack(root, options = {}) {
   const scenarioSpec = options.scenarioSpec ?? null;
   if (scenarioSpec && (scenarioSpec.schema !== "hexwitness-scenario-v1" || !scenarioSpec.id || !Array.isArray(scenarioSpec.steps))) throw new Error("invalid hexwitness-scenario-v1 specification");
   const scenarioName = options.scenario ?? scenarioSpec?.id ?? "controlled-runtime-observation";
-  const captureId = options.captureId ?? `CAP-${new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14)}-${String(scenarioName).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+  const captureId = options.captureId ?? `CAP-${new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 17)}-${String(scenarioName).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
   const requiredRoles = [...new Set(options.requiredRoles ?? scenarioSpec?.required_roles ?? BASELINE_CAPTURE_ROLES)];
   const requiredMarkers = options.requiredMarkers ?? scenarioSpec?.steps.filter((step) => step.required !== false).map((step) => step.id) ?? [];
   const manifest = {
@@ -294,7 +300,12 @@ export function auditCapturePack(root) {
     const path = join(pack.root, artifact.path);
     if (!inside(pack.root, path)) errors.push(`artifact escapes pack root: ${artifact.path}`);
     else if (!existsSync(path)) errors.push(`artifact missing: ${artifact.path}`);
-    else if (hashFile(path) !== artifact.sha256) errors.push(`artifact hash mismatch: ${artifact.path}`);
+    else {
+      const size = statSync(path).size;
+      if (size === 0) errors.push(`artifact is empty: ${artifact.path}`);
+      if (size !== artifact.size_bytes) errors.push(`artifact size mismatch: ${artifact.path}`);
+      if (hashFile(path) !== artifact.sha256) errors.push(`artifact hash mismatch: ${artifact.path}`);
+    }
   }
   if (!pack.manifest.executable_sha256) warnings.push("executable_sha256 missing; exact-build proof is weaker");
   if (!pack.manifest.markers.length) warnings.push("no action markers recorded");
@@ -303,28 +314,40 @@ export function auditCapturePack(root) {
 
 export function sealCapturePack(root, { allowIncomplete = false } = {}) {
   const pack = requirePack(root);
+  const originalManifest = structuredClone(pack.manifest);
+  const normalizedOutput = join(pack.root, "normalized", "evidence.hexwitness.jsonl");
+  const checksumOutput = join(pack.root, "checksums.sha256");
+  const findingsOutput = join(pack.root, "findings.md");
+  const existingOutputs = new Set([normalizedOutput, checksumOutput, findingsOutput].filter((path) => existsSync(path)));
   const preflight = auditCapturePack(pack.root);
+  if (preflight.errors.length) throw new Error(`capture integrity gate failed: ${preflight.errors.join(", ")}`);
   if (!preflight.passed && !allowIncomplete) throw new Error(`capture quality gate failed: ${[...preflight.missing_roles, ...preflight.missing_markers, ...preflight.errors].join(", ")}`);
-  pack.manifest.finished_utc = nowUtc();
-  pack.manifest.status = "sealed";
-  pack.manifest.quality = preflight.passed ? "accepted" : "incomplete";
-  pack.manifest.quality_report = preflight;
-  writeJson(pack.path, pack.manifest);
-  const normalized = normalizeCapturePack(pack.root);
-  const normalizedPath = relative(pack.root, normalized.output).replaceAll("\\", "/");
-  if (!pack.manifest.artifacts.some((item) => item.path === normalizedPath)) {
-    pack.manifest.artifacts.push({ role: "normalized-evidence", path: normalizedPath, sha256: hashFile(normalized.output), size_bytes: statSync(normalized.output).size, media_type: "application/x-ndjson", event_count: normalized.records });
+  try {
+    pack.manifest.finished_utc = nowUtc();
+    pack.manifest.status = "sealed";
+    pack.manifest.quality = preflight.passed ? "accepted" : "incomplete";
+    pack.manifest.quality_report = preflight;
     writeJson(pack.path, pack.manifest);
+    const normalized = normalizeCapturePack(pack.root);
+    const normalizedPath = relative(pack.root, normalized.output).replaceAll("\\", "/");
+    if (!pack.manifest.artifacts.some((item) => item.path === normalizedPath)) {
+      pack.manifest.artifacts.push({ role: "normalized-evidence", path: normalizedPath, sha256: hashFile(normalized.output), size_bytes: statSync(normalized.output).size, media_type: "application/x-ndjson", event_count: normalized.records });
+      writeJson(pack.path, pack.manifest);
+    }
+    const report = auditCapturePack(pack.root);
+    pack.manifest.quality_report = report;
+    writeJson(pack.path, pack.manifest);
+    const files = pack.manifest.artifacts.map((artifact) => ({ path: artifact.path, sha256: artifact.sha256 }));
+    files.push({ path: "manifest.json", sha256: hashFile(pack.path) });
+    writeFileSync(checksumOutput, `${files.map((item) => `${item.sha256}  ${item.path}`).join("\n")}\n`, "utf8");
+    writeFileSync(findingsOutput, `# ${pack.manifest.title}\n\n- Capture: \`${pack.manifest.capture_id}\`\n- Build: \`${pack.manifest.build_id}\`\n- Quality: **${pack.manifest.quality}**\n- Events: ${normalized.events}\n- Artifacts: ${pack.manifest.artifacts.length}\n\n## Findings\n\nAdd evidence-backed findings here. Do not paste sensitive payloads.\n`, "utf8");
+    if (existsSync(join(pack.root, "active-run.json"))) writeJson(join(pack.root, "active-run.json"), { capture_id: pack.manifest.capture_id, status: "sealed", finished_utc: pack.manifest.finished_utc });
+    return { manifest: pack.manifest, report, normalized };
+  } catch (error) {
+    writeJson(pack.path, originalManifest);
+    for (const path of [normalizedOutput, checksumOutput, findingsOutput]) if (!existingOutputs.has(path)) rmSync(path, { force: true });
+    throw error;
   }
-  const report = auditCapturePack(pack.root);
-  pack.manifest.quality_report = report;
-  writeJson(pack.path, pack.manifest);
-  const files = pack.manifest.artifacts.map((artifact) => ({ path: artifact.path, sha256: artifact.sha256 }));
-  files.push({ path: "manifest.json", sha256: hashFile(pack.path) });
-  writeFileSync(join(pack.root, "checksums.sha256"), `${files.map((item) => `${item.sha256}  ${item.path}`).join("\n")}\n`, "utf8");
-  writeFileSync(join(pack.root, "findings.md"), `# ${pack.manifest.title}\n\n- Capture: \`${pack.manifest.capture_id}\`\n- Build: \`${pack.manifest.build_id}\`\n- Quality: **${pack.manifest.quality}**\n- Events: ${normalized.events}\n- Artifacts: ${pack.manifest.artifacts.length}\n\n## Findings\n\nAdd evidence-backed findings here. Do not paste sensitive payloads.\n`, "utf8");
-  if (existsSync(join(pack.root, "active-run.json"))) writeJson(join(pack.root, "active-run.json"), { capture_id: pack.manifest.capture_id, status: "sealed", finished_utc: pack.manifest.finished_utc });
-  return { manifest: pack.manifest, report, normalized };
 }
 
 export function verifyCapturePack(root) {

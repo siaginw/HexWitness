@@ -60,3 +60,21 @@ test("capture directory is the short CLI path", () => {
     assert.equal(JSON.parse(run.stdout).verification.passed, true);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test("one-command capture can publish an explicitly incomplete exploratory pack", async () => {
+  const root = mkdtempSync(join(tmpdir(), "hexwitness-bundle-incomplete-"));
+  const source = join(root, "partial");
+  try {
+    mkdirSync(source);
+    const ts = "2026-08-11T12:00:00.000Z";
+    writeFileSync(join(source, "hooks.jsonl"), `${JSON.stringify({ ts_utc: ts, kind: "call", name: "observe" })}\n`);
+    writeFileSync(join(source, "capture.json"), JSON.stringify({
+      schema: "hexwitness-capture-input-v1", scenario: "exploratory", build_id: "fixture-build",
+      markers: [{ name: "observe", ts_utc: ts }], import: false,
+    }));
+    const result = await packCaptureDirectory(source, { import: false, allowIncomplete: true });
+    assert.equal(result.quality, "incomplete");
+    assert.equal(result.verification.passed, false);
+    assert.deepEqual(result.verification.errors, []);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

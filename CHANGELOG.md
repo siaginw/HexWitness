@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.0 — 2026-08-11
+
+- Reframed the public experience around durable RE memory, reproducible proof, and agent-led workflows.
+- Added an honest category comparison and machine-verifiable quality contract.
+- Switched Binary Ninja setup to the vendor's official MCP endpoint, with a configurable community fallback.
+- Added MCP read-only, non-destructive, idempotent, closed-world annotations to every query tool.
+- Made `setup --json` fully non-interactive.
+- Added `hexwitness --version`.
+- Hardened capture privacy by recursively removing sensitive fields inside arrays.
+- Rejects empty capture artifacts and rolls failed normalization back to a recoverable active pack.
+- Added an installed-package journey covering CLI → DB → daemon autostart → MCP → evidence query.
+
 ## 0.4.0 — 2026-08-11
 
 - Client-native HexWitness skills for Codex, Claude Code, Cursor, and GitHub Copilot.

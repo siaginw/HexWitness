@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { buildServerDefinitions, defaultClientPath, mergeMcpJson } from "../src/setup.mjs";
+import { buildServerDefinitions, defaultClientPath, mergeMcpJson, runSetup } from "../src/setup.mjs";
 
 test("setup definitions combine autostart memory and optional live viewers", () => {
   const servers = buildServerDefinitions({
@@ -17,8 +17,13 @@ test("setup definitions combine autostart memory and optional live viewers", () 
   assert.equal(servers.hexwitness.args[0], resolve("./bin/hexwitness-agent.mjs"));
   assert.equal(servers.hexwitness.env.HEXWITNESS_AGENT_SESSION, "fixture");
   assert.equal(servers.hexwitness.env.HEXWITNESS_AGENT_CLIENT, "codex");
-  assert.equal(servers.binary_ninja_live.url, "http://127.0.0.1:9090/mcp");
+  assert.equal(servers.binary_ninja_live.url, "http://127.0.0.1:24642/mcp");
   assert.match(servers.ida_live.args.join(" "), /idalib-mcp --stdio/);
+});
+
+test("setup keeps live viewer MCP endpoints local", () => {
+  assert.throws(() => buildServerDefinitions({ agentEntry: "./agent.mjs", viewer: "binary-ninja", binaryNinjaUrl: "https://viewer.example/mcp" }), /localhost/);
+  assert.throws(() => buildServerDefinitions({ agentEntry: "./agent.mjs", viewer: "binary-ninja", binaryNinjaUrl: "not a url" }), /invalid/);
 });
 
 test("setup JSON merge preserves existing servers and creates a backup", () => {
@@ -49,4 +54,16 @@ test("setup JSON merge refuses to replace a server without force", () => {
 test("client config paths are deterministic", () => {
   assert.equal(defaultClientPath("cursor", { home: "/srv/test", os: "linux", env: {} }), join("/srv/test", ".cursor", "mcp.json"));
   assert.equal(defaultClientPath("claude-desktop", { home: "C:/Profiles/Test", os: "win32", env: { APPDATA: "C:/Profiles/Test/AppData/Roaming" } }), join("C:/Profiles/Test/AppData/Roaming", "Claude", "claude_desktop_config.json"));
+});
+
+test("machine-readable setup is genuinely non-interactive", async () => {
+  const root = mkdtempSync(join(tmpdir(), "hexwitness-setup-json-"));
+  const output = join(root, "mcp.json");
+  const readline = { question: async () => { throw new Error("setup prompted in --json mode"); } };
+  try {
+    const result = await runSetup(["--client", "generic", "--viewer", "none", "--output", output, "--json"], { readline });
+    assert.equal(result.status, "installed");
+    assert.equal(existsSync(output), true);
+    assert.equal(existsSync(join(root, "hexwitness-agent-instructions.md")), true);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

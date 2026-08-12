@@ -1,79 +1,81 @@
-# Binary Ninja and IDA MCP bridges
+# Live viewer MCP bridges
 
-HexWitness stores durable, build-scoped evidence. A viewer MCP server gives the agent temporary eyes into an open or headless analysis database. Connecting both lets the agent answer from memory first, inspect a live database only for an explicit gap, and then promote the smallest useful result.
+HexWitness stores durable, build-scoped evidence. A viewer MCP gives the agent temporary eyes inside a live or headless analysis database. Together they support a memory-first loop: reuse proof, inspect one missing fact, then promote the bounded result.
 
-HexWitness does not vendor either project below. Their licenses, vendor requirements, release cadence, and security model remain upstream. The integrations were documentation-checked on 2026-08-11; real compatibility still depends on the installed Binary Ninja or IDA version.
+HexWitness does not vendor these viewers or bridges. Licenses, editions, security, and release cadence remain upstream. Links and configuration were reviewed on 2026-08-11; accept real compatibility in your own licensed environment.
 
 ## Recommended pairings
 
-| Viewer | MCP bridge | Why it pairs well | Transport |
+| Viewer | Live bridge | Role | Default transport |
 |---|---|---|---|
-| Binary Ninja | [symgraph/BinAssistMCP](https://github.com/symgraph/BinAssistMCP) | Live decompile/HLIL/MLIL/LLIL, xrefs, types, functions, strings, multi-binary context, guided prompts | Streamable HTTP at `http://127.0.0.1:9090/mcp` by default |
-| IDA Pro | [mrexodia/ida-pro-mcp](https://github.com/mrexodia/ida-pro-mcp) | Headless `idalib-mcp`, decompile/disassembly, xrefs, types, stack data, pattern search, multi-database workers | stdio recommended for local agents; local HTTP also available |
+| Binary Ninja | [Official Binary Ninja MCP](https://dev-docs.binary.ninja/guide/mcp.html) | Read-oriented file, BinaryView, analysis, function, IL, decompile, type, and xref access | GUI HTTP at `http://127.0.0.1:24642/mcp` or headless stdio |
+| IDA Pro | [mrexodia/ida-pro-mcp](https://github.com/mrexodia/ida-pro-mcp) | GUI/headless IDA and idalib analysis | `idalib-mcp --stdio` recommended for local agents |
 
-`BinAssistMCP` is listed in Vector 35's [community plugin index](https://github.com/Vector35/community-plugins). The IDA project currently recommends `idalib-mcp`; its older in-GUI MCP plugin is marked for eventual deprecation upstream.
+The IDA bridge is [endorsed by Hex-Rays](https://hex-rays.com/recon-montreal-2026). Binary Ninja's official MCP is not included with Free or Personal editions. Those users can evaluate a community bridge such as [BinAssistMCP](https://github.com/symgraph/BinAssistMCP), subject to its own compatibility and security model.
 
-## One AI workspace
+## Let the wizard connect them
 
-Run `hexwitness setup`, or copy [`.mcp.ai-first.json.example`](../.mcp.ai-first.json.example) and adjust absolute paths. It declares three distinct roles:
-
-- `hexwitness`: durable, read-only evidence memory;
-- `binary_ninja_live`: active Binary Ninja context;
-- `ida_live`: active or headless IDA context.
-
-Enable only the viewer you actually use. An MCP client may use a different key than `url` for Streamable HTTP; follow that client's transport syntax while keeping the endpoint unchanged.
-
-## Binary Ninja setup
-
-1. In Binary Ninja, open **Tools → Manage Plugins**.
-2. Find **BinAssistMCP**, install it, and restart Binary Ninja.
-3. Open **Edit → Preferences → binassistmcp**.
-4. Keep host `localhost`, port `9090`, and transport `streamablehttp` unless there is a local conflict.
-5. Open the authorized binary and confirm the server starts.
-6. Add the endpoint to the same MCP client that runs HexWitness:
-
-```json
-{
-  "mcpServers": {
-    "hexwitness": {
-      "command": "node",
-      "args": ["C:/tools/HexWitness/bin/hexwitness-agent.mjs"],
-      "env": { "HEXWITNESS_AGENT_SESSION": "binary-project" }
-    },
-    "binary_ninja_live": {
-      "url": "http://127.0.0.1:9090/mcp"
-    }
-  }
-}
+```bash
+hexwitness setup
 ```
 
-The viewer exposes mutating operations such as rename, comment, and patch. The HexWitness agent contract requires read-only use until the user explicitly authorizes a mutation.
+Select Binary Ninja, IDA, or both. The generated workspace keeps roles separate:
 
-### Binary Ninja investigation example
+- `hexwitness` — durable read-only memory;
+- `binary_ninja_live` — current Binary Ninja context;
+- `ida_live` — current or headless IDA context.
+
+The wizard configures the viewer entry. It does not install, license, enable, or launch commercial software.
+
+## Binary Ninja official MCP
+
+1. Open Binary Ninja settings.
+2. Enable `ui.mcp.enabled` and restart Binary Ninja.
+3. Optional: configure `ui.mcp.host`, `ui.mcp.port`, `ui.mcp.endpoint`, and `ui.mcp.token`.
+4. Choose **Plugins → MCP → Start Server**.
+5. Choose **Plugins → MCP → Copy Connection Info**.
+6. Confirm the copied URL matches your agent configuration.
+
+Default GUI URL:
 
 ```text
-Find the consumer of the string "invalid frame length". Query HexWitness first.
-If the decisive xref or HLIL is missing, use binary_ninja_live read-only to inspect
-only that function and its direct callers. Then use the HexWitness promotion prompt
-to specify the bounded exporter scope. Do not rename or patch anything.
+http://127.0.0.1:24642/mcp
 ```
 
-After inspection, run the bundled [Binary Ninja exporter](../adapters/binary-ninja/export_hexwitness.py) for the bounded scope and ingest the resulting JSONL.
+If a bearer token is enabled or the port is dynamic, use Binary Ninja's copied connection data instead of guessing. HexWitness setup accepts an alternate URL:
 
-## IDA setup
+```bash
+hexwitness setup --client codex --viewer binary-ninja \
+  --binary-ninja-url http://127.0.0.1:24642/mcp --yes
+```
 
-Prerequisites and activation are controlled by the upstream project: Python 3.11 or newer, a supported IDA Pro installation, `uv`, and activated `idalib`. IDA Free is not supported by that project.
+The official headless `binaryninja_mcp` executable uses stdio and requires an edition that includes it. Configure that entry manually when headless analysis is preferred.
 
-Clone or install the upstream MCP bridge, then use its current `idalib-mcp` entry point. A generic local-source configuration is:
+### Community fallback
+
+BinAssistMCP commonly uses `http://127.0.0.1:9090/mcp`. Point the same option at that endpoint:
+
+```bash
+hexwitness setup --client cursor --viewer binary-ninja \
+  --binary-ninja-url http://127.0.0.1:9090/mcp --yes
+```
+
+Community bridges may expose mutation. HexWitness guidance keeps live inspection read-only unless the user explicitly authorizes a change.
+
+## IDA Pro MCP
+
+Prerequisites are controlled upstream: supported IDA Pro, Python, `uv`, and activated idalib. Clone the current bridge into the directory passed to setup:
+
+```bash
+hexwitness setup --client codex --viewer ida \
+  --ida-dir C:/tools/ida-pro-mcp --yes
+```
+
+Equivalent generic entry:
 
 ```json
 {
   "mcpServers": {
-    "hexwitness": {
-      "command": "node",
-      "args": ["C:/tools/HexWitness/bin/hexwitness-agent.mjs"],
-      "env": { "HEXWITNESS_AGENT_SESSION": "binary-project" }
-    },
     "ida_live": {
       "command": "uv",
       "args": [
@@ -88,37 +90,39 @@ Clone or install the upstream MCP bridge, then use its current `idalib-mcp` entr
 }
 ```
 
-Use the upstream `ida-pro-mcp --config` command when the MCP client needs a client-specific configuration. `idalib-mcp` can open a database on demand and can adopt a matching running GUI database. Save GUI-only changes before expecting a headless worker to see them.
+Use the upstream project's current configuration command when its launch contract changes. Save GUI-only changes before expecting a headless worker to observe them.
 
-### IDA investigation example
+## Safe orchestration
 
-```text
-Resolve UUID 6f9619ff-8b86-d011-b42d-00cf4fc964ff in HexWitness and explain its
-retained class model. If a vtable slot target is absent, use ida_live read-only to
-resolve exactly that slot, decompile its target, and list direct xrefs. Prepare the
-minimum IDA exporter scope required to make the result durable.
-```
-
-After inspection, use the bundled [IDA exporter](../adapters/ida/export_hexwitness.py) and verify the finding through HexWitness rather than relying on the transient IDA response.
-
-## Safe orchestration policy
-
-| Stage | Authority | Expected action |
+| Stage | Authority | Action |
 |---|---|---|
 | Memory | HexWitness | Select build, search, explain, inspect evidence and contradictions |
-| Gap | HexWitness | Name the smallest missing artifact with `gap_report` and `dump_guide` |
-| Live read | Viewer MCP | Inspect only the named function, type, references, or slice |
-| Promotion | Vendor exporter + local CLI | Emit reviewed `hexwitness-jsonl-v1` and ingest it |
-| Verification | HexWitness | Re-run search/explain and confirm the viewer is no longer required |
+| Gap | HexWitness | Name the smallest missing fact with gap report and dump guide |
+| Live read | Viewer MCP | Inspect only that function, type, xref, field, or slice |
+| Promotion | Viewer exporter + CLI | Emit reviewed `hexwitness-jsonl-v1` and ingest it |
+| Verification | HexWitness | Re-run the original query and confirm the answer is durable |
 
-Keep every service on localhost unless a separately authenticated and encrypted transport is configured. Do not expose Binary Ninja or IDA MCP endpoints to an untrusted network.
+Example:
 
-## Compatibility boundary
+```text
+Find the consumer of "invalid frame length". Query HexWitness first.
+If one decisive xref is missing, use the connected viewer read-only to inspect
+that function and its direct callers. Export only the bounded result, ingest it,
+and reproduce the answer from HexWitness.
+```
 
-HexWitness CI tests its MCP server, evidence schema, and synthetic exporters. It does not launch commercial viewers in CI. Therefore:
+Keep every MCP endpoint on localhost unless separately authenticated and encrypted. Viewer MCPs can expose powerful analysis or mutation operations and should not be placed on an untrusted network.
 
-- the integration contract and configurations are first-party;
-- the viewer MCP implementations are third-party;
-- upstream tool names and transport options can change;
-- exact supported viewer versions should be pinned only after testing in your environment;
-- `hexwitness doctor`, exporter validation, and a synthetic ingest/query remain the final local acceptance checks.
+## Tested boundary
+
+HexWitness CI tests its own MCP server, evidence schemas, setup definitions, exporters with synthetic fixtures, and installed-package journey. CI does not download or launch commercial viewers.
+
+Therefore:
+
+- HexWitness configuration and promotion contracts are first-party;
+- Binary Ninja's MCP is vendor-owned;
+- IDA Pro MCP is upstream-owned and vendor-endorsed;
+- community bridge behavior remains community-owned;
+- exact viewer compatibility must be tested locally.
+
+See [Quality](QUALITY.md) and [Troubleshooting](TROUBLESHOOTING.md).
