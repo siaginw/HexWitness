@@ -25,6 +25,12 @@ export function createMcpServer(client = new DaemonClient()) {
     inputSchema: {},
   }, async () => content(await client.get("/v1/builds")));
 
+  server.registerTool("hexwitness_memory_status", {
+    title: "Inspect durable evidence memory",
+    description: "Show what HexWitness retains, database size and counts, latest ingest/capture, privacy-preserving activity, and the query-before-live-tool reuse policy.",
+    inputSchema: {},
+  }, async () => content(await client.get("/v1/memory")));
+
   server.registerTool("hexwitness_search", {
     title: "Search binary entities",
     description: "Search functions, symbols, strings, types, classes, imports, and runtime objects.",

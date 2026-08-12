@@ -24,6 +24,12 @@ flowchart LR
 - **MCP** mirrors daemon semantics. It never bypasses provenance rules.
 - **Activity DB** is separate from evidence. It can be deleted without affecting analysis.
 
+## Memory model
+
+The evidence database is durable semantic memory: imported facts, relationships, captures, claims, and provenance survive viewer and agent restarts. The activity database is operational history only: hashed arguments, timing, status, and counts. It intentionally cannot reconstruct sensitive queries or returned evidence.
+
+Live viewer calls are not silently cached. Promotion is explicit—export a bounded result through an adapter, ingest it transactionally, then query it through the daemon. This keeps retention reviewable while ensuring previously promoted work is reused first.
+
 ## Why SQLite
 
 Reverse-engineering evidence is local, relational, highly queryable, and usually read-heavy. SQLite provides transactions, indexes, portable single-file storage, and simple backup without operating a separate database service. The interchange format prevents lock-in: rebuild the index from JSONL exports at any time.

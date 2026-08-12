@@ -13,7 +13,7 @@ test("MCP publishes the agent-first evidence vocabulary", async () => {
   try {
     const listed = await client.listTools();
     const names = new Set(listed.tools.map((tool) => tool.name));
-    for (const expected of ["hexwitness_health", "hexwitness_search", "hexwitness_query", "hexwitness_explain", "hexwitness_gap_report", "hexwitness_dump_guide", "hexwitness_contradictions", "hexwitness_class", "hexwitness_uuid", "hexwitness_types", "hexwitness_offsets", "hexwitness_metadata", "hexwitness_decomp_search", "hexwitness_path", "hexwitness_compare_builds", "hexwitness_dataflow", "hexwitness_capture_timeline", "hexwitness_capture_compare"]) {
+    for (const expected of ["hexwitness_health", "hexwitness_memory_status", "hexwitness_search", "hexwitness_query", "hexwitness_explain", "hexwitness_gap_report", "hexwitness_dump_guide", "hexwitness_contradictions", "hexwitness_class", "hexwitness_uuid", "hexwitness_types", "hexwitness_offsets", "hexwitness_metadata", "hexwitness_decomp_search", "hexwitness_path", "hexwitness_compare_builds", "hexwitness_dataflow", "hexwitness_capture_timeline", "hexwitness_capture_compare"]) {
       assert.equal(names.has(expected), true, `missing ${expected}`);
     }
     const health = await client.callTool({ name: "hexwitness_health", arguments: {} });

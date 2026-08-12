@@ -55,6 +55,25 @@ flowchart LR
 
 HexWitness is target-agnostic. No application, game, protocol, address, packet layout, or private evidence is built into the core.
 
+## Durable memory: investigate once, reuse it
+
+HexWitness is not just a search wrapper around a live disassembler. It is persistent project memory.
+
+1. An exporter or capture pack turns a finding into build-scoped evidence.
+2. Idempotent ingestion stores entities, calls, types, UUIDs, offsets, runtime events, relationships, claims, and provenance in SQLite.
+3. Humans and agents query that memory before asking Binary Ninja, IDA, Ghidra, Frida, or another live tool.
+4. A live tool is called only when retained evidence cannot answer the question.
+5. The new bounded result is exported and ingested, so the next investigation reuses it.
+
+```bash
+hexwitness memory
+curl http://127.0.0.1:7878/v1/memory
+```
+
+MCP agents get the same view through `hexwitness_memory_status`. The response shows durable evidence counts, database size, latest ingest and capture, retention policy, and recent privacy-preserving activity.
+
+One important boundary: HexWitness does not silently retain every proprietary viewer response. A live result becomes durable after the viewer adapter exports it or the result is otherwise ingested. Query activity is stored separately as operation hashes, timing, status, and result counts—never full arguments or returned evidence.
+
 ## Quick start
 
 Requirements: Git and Node.js 22.13 or newer.
@@ -122,6 +141,7 @@ See [sealed capture packs](docs/CAPTURE-PACKS.md) for collector contracts, direc
 The CLI, REST daemon, and MCP server expose the same investigation concepts:
 
 - `query`, `search`, `explain`, `callers`, `callees`, `xrefs`, and bounded `reach`;
+- `memory` status showing retained evidence and query-before-live-tool policy;
 - `functions`, `classes`, `class`, `uuid`, `types`, `vtable`, `dataflow`, and `slices`;
 - `evidence`, `contradictions`, `gaps`, `worklist`, and `coverage`;
 - capture list, detail, timeline, search, graph, compare, and first divergence.

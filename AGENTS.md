@@ -3,7 +3,7 @@
 HexWitness is an evidence index, not an oracle. Follow this sequence whenever investigating a binary:
 
 1. Call `hexwitness_health`.
-2. Call `hexwitness_builds`; select the exact build matching the user's artifact.
+2. Call `hexwitness_memory_status`, then `hexwitness_builds`; reuse retained evidence before invoking a live viewer.
 3. Use `hexwitness_search` to resolve a name or address.
 4. Use `hexwitness_explain` before requesting narrower graph traversals.
 5. Use callers, callees, xrefs, paths, dataflow, and slices only after the entity is resolved.

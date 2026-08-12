@@ -147,6 +147,27 @@ export function stats(db) {
   };
 }
 
+export function memoryStatus(db) {
+  const pageCount = Number(db.prepare("PRAGMA page_count").get()?.page_count ?? 0);
+  const pageSize = Number(db.prepare("PRAGMA page_size").get()?.page_size ?? 0);
+  return {
+    mode: "durable-evidence-first",
+    policy: {
+      query_before_live_tool: true,
+      idempotent_ingestion: true,
+      live_result_requires_export_or_ingest: true,
+      activity_retains_arguments_or_results: false,
+    },
+    durable: {
+      ...stats(db),
+      database_bytes: pageCount * pageSize,
+      latest_import: publicRow(db.prepare("SELECT import_id,source_sha256,finished_utc,status,accepted_count,rejected_count FROM import_runs ORDER BY started_utc DESC LIMIT 1").get()),
+      latest_capture: publicRow(db.prepare("SELECT capture_id,build_id,scenario,finished_utc,status FROM captures ORDER BY COALESCE(finished_utc,started_utc) DESC LIMIT 1").get()),
+    },
+    reuse_sequence: ["select exact build", "query HexWitness", "use retained evidence when sufficient", "call live viewer only for a gap", "export and ingest the new finding"],
+  };
+}
+
 export function gapReport(db, selector, objective = "behavior") {
   const dossier = explain(db, selector);
   if (!dossier) return null;

@@ -27,6 +27,12 @@ test("daemon serves read-only evidence queries and records safe activity", async
     assert.equal(routes.routes.includes("/v1/class"), true);
     assert.equal(routes.routes.includes("/v1/captures/compare"), true);
 
+    const memory = await fetch(`http://127.0.0.1:${port}/v1/memory`).then((response) => response.json());
+    assert.equal(memory.mode, "durable-evidence-first");
+    assert.equal(memory.policy.query_before_live_tool, true);
+    assert.equal(memory.policy.activity_retains_arguments_or_results, false);
+    assert.equal(memory.durable.entities, 4);
+
     const queried = await fetch(`http://127.0.0.1:${port}/v1/query?build_id=toy-v1&q=dispatch&kinds=function`).then((response) => response.json());
     assert.equal(queried[0].name, "dispatch_request");
 

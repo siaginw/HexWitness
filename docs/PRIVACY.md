@@ -22,6 +22,8 @@ Activity history stores:
 
 It does not store argument values, prompts, returned evidence, raw bytes, decompiler text, or agent conversations. Default retention is 30 days.
 
+This separation defines HexWitness memory: the evidence database retains findings that a user intentionally exports and ingests; the activity database records that a query occurred without retaining the query or answer. Live viewer results are not silently copied into either database.
+
 ## Publication checklist
 
 - Search for credentials and tokens.

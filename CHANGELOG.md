@@ -10,6 +10,7 @@
 - Deeper Binary Ninja, IDA, and Ghidra exports plus a generic narrow Frida observer.
 - Machine-readable adapter, scenario, and capture-pack schemas.
 - Target-agnostic capability matrix and complete capture-pack documentation.
+- Visible durable-memory status across CLI, REST, and MCP, with explicit evidence-first reuse and privacy-separated activity history.
 
 ## 0.1.0 — 2026-08-11
 

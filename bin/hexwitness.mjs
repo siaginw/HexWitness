@@ -10,7 +10,7 @@ import { gapReport } from "../src/query.mjs";
 import { startDaemon } from "../src/daemon.mjs";
 import { dumpGuide } from "../src/guides.mjs";
 import { addCaptureArtifact, addCaptureMarker, initCapturePack, inspectCapturePack, normalizeCapturePack, sealCapturePack, verifyCapturePack } from "../src/capture-pack.mjs";
-import { analysisSlices, captureDetail, captureGraph, captureSearch, captureTimeline, classDetail, compareBuilds, compareCaptures, coverage, dataflow, decompSearch, edgeKinds, evidenceFor, fieldOffsets, functionInventory, gapWorklist, genericQuery, listBuilds, listCaptures, metadataLookup, neighbors, objectModel, reachable, shortestPath, typeRegistry, uuidLookup, vtableDetail, xrefs } from "../src/query.mjs";
+import { analysisSlices, captureDetail, captureGraph, captureSearch, captureTimeline, classDetail, compareBuilds, compareCaptures, coverage, dataflow, decompSearch, edgeKinds, evidenceFor, fieldOffsets, functionInventory, gapWorklist, genericQuery, listBuilds, listCaptures, memoryStatus, metadataLookup, neighbors, objectModel, reachable, shortestPath, typeRegistry, uuidLookup, vtableDetail, xrefs } from "../src/query.mjs";
 
 function option(args, name, fallback = null) {
   const index = args.indexOf(name);
@@ -29,6 +29,7 @@ Usage:
   hexwitness serve [--db PATH] [--host HOST] [--port PORT]
   hexwitness search QUERY [--build BUILD] [--kind KIND]
   hexwitness builds
+  hexwitness memory
   hexwitness explain ADDRESS [--build BUILD]
   hexwitness gaps ADDRESS [--build BUILD] [--objective behavior]
   hexwitness guide [identity|control_flow|data_flow|object_model|protocol|runtime|behavior]
@@ -94,6 +95,7 @@ try {
       print(search(db, { q: args[1] ?? "", buildId: option(args, "--build"), kind: option(args, "--kind") })); db.close(); break;
     }
     case "builds": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(listBuilds(db)); db.close(); break; }
+    case "memory": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(memoryStatus(db)); db.close(); break; }
     case "explain": {
       if (!args[1]) throw new Error("explain requires an address");
       const db = openEvidenceDb(config.evidenceDb, { readOnly: true });

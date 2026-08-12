@@ -13,7 +13,7 @@ Start `npm start`, then copy [`.mcp.json.example`](../.mcp.json.example) into th
 
 | Family | Tools |
 |---|---|
-| Service | `health`, `builds`, `activity_summary` |
+| Service and memory | `health`, `memory_status`, `builds`, `activity_summary` |
 | Resolution | `search`, `query`, `explain` |
 | Graph | `callers`, `callees`, `xrefs`, `reach`, `path`, `dataflow`, `slices`, `edge_kinds` |
 | Object model | `functions`, `classes`, `class`, `vtable`, `uuid`, `types`, `offsets`, `metadata`, `decomp_search`, `compare_builds` |
@@ -25,12 +25,15 @@ All tool names carry the `hexwitness_` prefix.
 ## Canonical agent sequence
 
 1. `hexwitness_health`
-2. `hexwitness_builds`
-3. `hexwitness_search` or `hexwitness_query`
-4. `hexwitness_explain`
-5. the smallest focused graph, object-model, or capture query
-6. `hexwitness_evidence` and `hexwitness_contradictions`
-7. `hexwitness_gap_report` or `hexwitness_worklist` for unresolved proof
+2. `hexwitness_memory_status`
+3. `hexwitness_builds`
+4. `hexwitness_search` or `hexwitness_query`
+5. `hexwitness_explain`
+6. the smallest focused graph, object-model, or capture query
+7. `hexwitness_evidence` and `hexwitness_contradictions`
+8. `hexwitness_gap_report` or `hexwitness_worklist` for unresolved proof
+
+The memory tool makes reuse explicit: retained evidence first, live viewer only for a documented gap, then bounded export and ingestion. Activity history proves which operations ran without retaining arguments or result content.
 
 The server also publishes `hexwitness_start_investigation`, a prompt that enforces this sequence.
 

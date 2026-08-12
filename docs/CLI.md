@@ -9,11 +9,14 @@ hexwitness init [--db PATH]
 hexwitness ingest FILE [--db PATH]
 hexwitness serve [--db PATH] [--host HOST] [--port PORT]
 hexwitness stats
+hexwitness memory
 hexwitness doctor
 hexwitness demo [--reset]
 ```
 
 `ingest` validates the complete JSONL before applying one atomic, idempotent transaction. `serve` is query-only. Non-local binds require `HEXWITNESS_API_TOKEN`.
+
+`memory` reports durable evidence counts, database size, latest ingest/capture, and the query-before-live-tool reuse policy.
 
 ## Static and evidence queries
 
