@@ -14,7 +14,7 @@ import json
 import os
 from datetime import datetime, timezone
 
-from binaryninja import BinaryView, core_version_info  # type: ignore
+from binaryninja import BinaryView, SymbolType, core_version_info  # type: ignore
 
 
 FORMAT = "hexwitness-jsonl-v1"
@@ -60,6 +60,21 @@ def export(view):
             if include_decomp and function.hlil is not None:
                 fields["decompiler"] = str(function.hlil)
             emit(stream, "entity", **fields)
+            if include_decomp and function.hlil is not None:
+                emit(stream, "slice", build_id=build_id, entity_key=stable_key, kind="hlil",
+                     start_address=hex(function.start), end_address=hex(function.highest_address),
+                     text=str(function.hlil), metadata={"tool": "binary-ninja"})
+            for index, block in enumerate(function.basic_blocks):
+                block_key = "bb:%s:%d" % (hex(function.start), index)
+                emit(stream, "entity", build_id=build_id, kind="basic_block", stable_key=block_key,
+                     name="%s:block_%d" % (function.name, index), address=hex(block.start),
+                     size=max(0, block.end - block.start), metadata={"function": stable_key, "index": index})
+                emit(stream, "edge", build_id=build_id, kind="contains", source=stable_key, target=block_key)
+                for outgoing in block.outgoing_edges:
+                    target_index = list(function.basic_blocks).index(outgoing.target)
+                    emit(stream, "edge", build_id=build_id, kind="control_flow", source=block_key,
+                         target="bb:%s:%d" % (hex(function.start), target_index),
+                         metadata={"branch_type": str(outgoing.type)})
 
         seen_strings = set()
         for string in view.strings:
@@ -80,6 +95,31 @@ def export(view):
                     emit(stream, "edge", build_id=build_id, kind="code_reference",
                          source="fn:" + hex(caller.start), target=source,
                          source_address=hex(reference.address), target_address=hex(function.start))
+
+        for string_address in sorted(seen_strings):
+            for reference in view.get_code_refs(string_address):
+                if reference.function:
+                    emit(stream, "edge", build_id=build_id, kind="references",
+                         source="fn:" + hex(reference.function.start), target="str:" + hex(string_address),
+                         source_address=hex(reference.address), target_address=hex(string_address))
+
+        for symbol in view.get_symbols_of_type(SymbolType.ImportedFunctionSymbol):
+            key = "import:" + symbol.full_name
+            emit(stream, "entity", build_id=build_id, kind="import", stable_key=key,
+                 name=symbol.full_name, address=hex(symbol.address), metadata={"namespace": symbol.namespace.name})
+
+        for type_name, type_object in view.types.items():
+            kind = "class" if getattr(type_object, "type_class", None) is not None and "Structure" in str(type_object.type_class) else "type"
+            key = "type:" + str(type_name)
+            emit(stream, "entity", build_id=build_id, kind=kind, stable_key=key, name=str(type_name),
+                 size=getattr(type_object, "width", None), signature=str(type_object),
+                 metadata={"type_class": str(getattr(type_object, "type_class", "unknown"))})
+            for member in getattr(type_object, "members", []) or []:
+                member_key = "%s:field:%s:%s" % (key, getattr(member, "offset", 0), member.name)
+                emit(stream, "entity", build_id=build_id, kind="field", stable_key=member_key,
+                     name=member.name, size=getattr(member.type, "width", None), signature=str(member.type),
+                     metadata={"offset": getattr(member, "offset", None), "owner": key})
+                emit(stream, "edge", build_id=build_id, kind="field", source=key, target=member_key)
 
     print("HexWitness export written:", output)
 

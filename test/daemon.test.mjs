@@ -23,6 +23,13 @@ test("daemon serves read-only evidence queries and records safe activity", async
     const dossier = await fetch(`http://127.0.0.1:${port}/v1/explain?build_id=toy-v1&address=0x401120`).then((response) => response.json());
     assert.equal(dossier.entity.name, "dispatch_request");
 
+    const routes = await fetch(`http://127.0.0.1:${port}/v1/routes`).then((response) => response.json());
+    assert.equal(routes.routes.includes("/v1/class"), true);
+    assert.equal(routes.routes.includes("/v1/captures/compare"), true);
+
+    const queried = await fetch(`http://127.0.0.1:${port}/v1/query?build_id=toy-v1&q=dispatch&kinds=function`).then((response) => response.json());
+    assert.equal(queried[0].name, "dispatch_request");
+
     const writeAttempt = await fetch(`http://127.0.0.1:${port}/v1/ingest`, { method: "POST" });
     assert.equal(writeAttempt.status, 405);
   } finally {

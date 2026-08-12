@@ -4,7 +4,12 @@ import { basename } from "node:path";
 import { loadConfig } from "./config.mjs";
 import { openEvidenceDb } from "./db.mjs";
 import { ActivityLog } from "./activity.mjs";
-import { contradictions, evidenceFor, explain, gapReport, listBuilds, neighbors, search, stats, xrefs } from "./query.mjs";
+import {
+  analysisSlices, captureDetail, captureGraph, captureSearch, captureTimeline, classDetail, compareCaptures,
+  contradictions, coverage, dataflow, evidenceFor, explain, functionInventory, gapReport, gapWorklist,
+  compareBuilds, decompSearch, edgeKinds, fieldOffsets, genericQuery, listBuilds, listCaptures, metadataLookup,
+  neighbors, objectModel, reachable, search, shortestPath, stats, typeRegistry, uuidLookup, vtableDetail, xrefs,
+} from "./query.mjs";
 import { dumpGuide } from "./guides.mjs";
 import { VERSION } from "./constants.mjs";
 
@@ -39,10 +44,19 @@ export function startDaemon(overrides = {}) {
   if (!["127.0.0.1", "localhost", "::1"].includes(config.host) && !config.apiToken) {
     throw new Error("refusing non-local bind without HEXWITNESS_API_TOKEN");
   }
-  const db = openEvidenceDb(config.evidenceDb);
+  const db = openEvidenceDb(config.evidenceDb, { readOnly: true });
   const activity = new ActivityLog(config.activityDb, { enabled: config.activityLog, retentionDays: config.retentionDays });
   activity.purge();
   const startedAt = new Date().toISOString();
+  const routes = [
+    "/v1/health", "/v1/routes", "/v1/builds", "/v1/builds/compare", "/v1/stats", "/v1/search", "/v1/query", "/v1/explain",
+    "/v1/gaps", "/v1/gaps/worklist", "/v1/coverage", "/v1/guide/dump", "/v1/callers", "/v1/callees",
+    "/v1/xrefs", "/v1/reach", "/v1/dataflow", "/v1/slices", "/v1/functions", "/v1/classes", "/v1/class",
+    "/v1/vtable", "/v1/uuid", "/v1/types", "/v1/offsets", "/v1/metadata", "/v1/decomp/search",
+    "/v1/path", "/v1/edges/kinds", "/v1/evidence", "/v1/contradictions", "/v1/captures",
+    "/v1/captures/detail", "/v1/captures/timeline", "/v1/captures/search", "/v1/captures/graph",
+    "/v1/captures/compare", "/v1/activity",
+  ];
 
   const server = createServer((request, response) => {
     const started = performance.now();
@@ -60,20 +74,55 @@ export function startDaemon(overrides = {}) {
           result = { ok: true, service: "hexwitness-daemon", version: VERSION, started_utc: startedAt, database: { file: basename(config.evidenceDb), read_only: true }, stats: stats(db) };
           break;
         case "/v1/builds": result = listBuilds(db); break;
+        case "/v1/builds/compare": result = compareBuilds(db, url.searchParams.get("left"), url.searchParams.get("right"), { limit: url.searchParams.get("limit") }); break;
+        case "/v1/routes": result = { version: VERSION, read_only: true, routes }; break;
         case "/v1/stats": result = stats(db); break;
         case "/v1/search":
           result = search(db, { q: url.searchParams.get("q"), buildId: url.searchParams.get("build_id"), kind: url.searchParams.get("kind"), limit: url.searchParams.get("limit") });
           break;
         case "/v1/explain": result = explain(db, selector(url.searchParams)); break;
+        case "/v1/query": result = genericQuery(db, {
+          buildId: url.searchParams.get("build_id"), q: url.searchParams.get("q") ?? "",
+          kinds: (url.searchParams.get("kinds") ?? "").split(",").filter(Boolean),
+          edgeKinds: (url.searchParams.get("edge_kinds") ?? "").split(",").filter(Boolean),
+          hasEvidence: url.searchParams.has("has_evidence") ? url.searchParams.get("has_evidence") === "true" : null,
+          hasRuntime: url.searchParams.has("has_runtime") ? url.searchParams.get("has_runtime") === "true" : null,
+          limit: url.searchParams.get("limit"),
+        }); break;
         case "/v1/gaps": result = gapReport(db, selector(url.searchParams), url.searchParams.get("objective") ?? "behavior"); break;
+        case "/v1/gaps/worklist": result = gapWorklist(db, { buildId: url.searchParams.get("build_id"), captureId: url.searchParams.get("capture_id"), status: url.searchParams.get("status"), limit: url.searchParams.get("limit") }); break;
+        case "/v1/coverage": result = coverage(db, { buildId: url.searchParams.get("build_id") }); break;
         case "/v1/guide/dump": result = dumpGuide(url.searchParams.get("objective") ?? "behavior"); break;
         case "/v1/callers": result = neighbors(db, selector(url.searchParams), "incoming", "call", url.searchParams.get("limit")); break;
         case "/v1/callees": result = neighbors(db, selector(url.searchParams), "outgoing", "call", url.searchParams.get("limit")); break;
         case "/v1/xrefs": result = xrefs(db, selector(url.searchParams), url.searchParams.get("limit")); break;
+        case "/v1/reach": result = reachable(db, selector(url.searchParams), { direction: url.searchParams.get("direction") ?? "outgoing", kind: url.searchParams.get("kind"), depth: url.searchParams.get("depth"), limit: url.searchParams.get("limit") }); break;
+        case "/v1/dataflow": result = dataflow(db, selector(url.searchParams), { direction: url.searchParams.get("direction") ?? "both", depth: url.searchParams.get("depth"), limit: url.searchParams.get("limit") }); break;
+        case "/v1/slices": result = analysisSlices(db, selector(url.searchParams), { kind: url.searchParams.get("kind"), limit: url.searchParams.get("limit") }); break;
+        case "/v1/functions": result = functionInventory(db, { buildId: url.searchParams.get("build_id"), q: url.searchParams.get("q") ?? "", named: url.searchParams.has("named") ? url.searchParams.get("named") === "true" : null, limit: url.searchParams.get("limit") }); break;
+        case "/v1/classes": result = objectModel(db, { buildId: url.searchParams.get("build_id"), q: url.searchParams.get("q") ?? "", limit: url.searchParams.get("limit") }); break;
+        case "/v1/class": result = classDetail(db, { buildId: url.searchParams.get("build_id"), name: url.searchParams.get("name"), stableKey: url.searchParams.get("stable_key"), entityId: url.searchParams.get("entity_id") }); break;
+        case "/v1/vtable": result = vtableDetail(db, selector(url.searchParams), url.searchParams.get("limit")); break;
+        case "/v1/uuid": result = uuidLookup(db, { buildId: url.searchParams.get("build_id"), uuid: url.searchParams.get("uuid"), limit: url.searchParams.get("limit") }); break;
+        case "/v1/types": result = typeRegistry(db, { buildId: url.searchParams.get("build_id"), q: url.searchParams.get("q") ?? "", kind: url.searchParams.get("kind"), limit: url.searchParams.get("limit") }); break;
+        case "/v1/offsets": result = fieldOffsets(db, { buildId: url.searchParams.get("build_id"), owner: url.searchParams.get("owner") ?? "", q: url.searchParams.get("q") ?? "", limit: url.searchParams.get("limit") }); break;
+        case "/v1/metadata": result = metadataLookup(db, { buildId: url.searchParams.get("build_id"), q: url.searchParams.get("q"), kinds: (url.searchParams.get("kinds") ?? "").split(",").filter(Boolean), limit: url.searchParams.get("limit") }); break;
+        case "/v1/decomp/search": result = decompSearch(db, { buildId: url.searchParams.get("build_id"), q: url.searchParams.get("q"), kind: url.searchParams.get("kind"), limit: url.searchParams.get("limit") }); break;
+        case "/v1/path": result = shortestPath(db,
+          { buildId: url.searchParams.get("build_id"), address: url.searchParams.get("from_address"), stableKey: url.searchParams.get("from_key"), entityId: url.searchParams.get("from_entity") },
+          { buildId: url.searchParams.get("build_id"), address: url.searchParams.get("to_address"), stableKey: url.searchParams.get("to_key"), entityId: url.searchParams.get("to_entity") },
+          { kind: url.searchParams.get("kind"), direction: url.searchParams.get("direction") ?? "outgoing", depth: url.searchParams.get("depth") }); break;
+        case "/v1/edges/kinds": result = edgeKinds(db, { buildId: url.searchParams.get("build_id") }); break;
         case "/v1/evidence":
           result = evidenceFor(db, { buildId: url.searchParams.get("build_id"), source: url.searchParams.get("source"), classification: url.searchParams.get("classification"), limit: url.searchParams.get("limit") });
           break;
         case "/v1/contradictions": result = contradictions(db, { buildId: url.searchParams.get("build_id"), limit: url.searchParams.get("limit") }); break;
+        case "/v1/captures": result = listCaptures(db, { buildId: url.searchParams.get("build_id"), scenario: url.searchParams.get("scenario"), status: url.searchParams.get("status"), limit: url.searchParams.get("limit") }); break;
+        case "/v1/captures/detail": result = captureDetail(db, url.searchParams.get("capture_id")); break;
+        case "/v1/captures/timeline": result = captureTimeline(db, url.searchParams.get("capture_id"), { after: url.searchParams.get("after"), limit: url.searchParams.get("limit"), source: url.searchParams.get("source"), kind: url.searchParams.get("kind"), name: url.searchParams.get("name") }); break;
+        case "/v1/captures/search": result = captureSearch(db, { captureId: url.searchParams.get("capture_id"), q: url.searchParams.get("q") ?? "", direction: url.searchParams.get("direction"), kind: url.searchParams.get("kind"), limit: url.searchParams.get("limit") }); break;
+        case "/v1/captures/graph": result = captureGraph(db, url.searchParams.get("capture_id"), { kind: url.searchParams.get("kind"), limit: url.searchParams.get("limit") }); break;
+        case "/v1/captures/compare": result = compareCaptures(db, url.searchParams.get("left"), url.searchParams.get("right")); break;
         case "/v1/activity": {
           const requested = Number(url.searchParams.get("limit") ?? 25);
           const limit = Number.isInteger(requested) && requested > 0 ? Math.min(requested, 100) : 25;

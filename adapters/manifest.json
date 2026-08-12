@@ -1,0 +1,10 @@
+{
+  "schema": "hexwitness-adapter-catalog-v1",
+  "adapters": [
+    { "id": "binary-ninja", "kind": "static-exporter", "path": "binary-ninja/export_hexwitness.py", "capabilities": ["functions", "strings", "imports", "calls", "references", "basic-blocks", "types", "fields", "optional-hlil"] },
+    { "id": "ida", "kind": "static-exporter", "path": "ida/export_hexwitness.py", "capabilities": ["functions", "strings", "imports", "calls", "references", "basic-blocks"] },
+    { "id": "ghidra", "kind": "static-exporter", "path": "ghidra/ExportHexWitness.py", "capabilities": ["functions", "calls", "basic-blocks", "types", "fields", "enums"] },
+    { "id": "frida-semantic", "kind": "semantic-observer", "path": "frida-jsonl/observer.js", "capabilities": ["narrow-interceptor-hooks", "operator-markers", "safe-arguments", "call-duration"] },
+    { "id": "frida-normalizer", "kind": "normalizer", "path": "frida-jsonl/normalize.mjs", "capabilities": ["runtime-events", "build-binding", "capture-binding"] }
+  ]
+}

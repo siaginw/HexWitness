@@ -1,9 +1,9 @@
 {
   "name": "hexwitness",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Evidence-first reverse-engineering workbench for humans and AI agents",
   "author": {
-    "name": "siaginw",
+    "name": "SiagiNW",
     "url": "https://github.com/siaginw"
   },
   "homepage": "https://github.com/siaginw/HexWitness#readme",
@@ -39,6 +39,8 @@
     "src",
     "adapters/**/*.py",
     "adapters/**/*.mjs",
+    "adapters/**/*.js",
+    "adapters/**/*.json",
     "adapters/README.md",
     "schemas",
     "examples",
@@ -60,7 +62,7 @@
     "demo": "node bin/hexwitness.mjs demo --reset",
     "doctor": "node bin/hexwitness.mjs doctor",
     "test": "node --test",
-    "check": "node --check src/daemon.mjs && node --check src/mcp.mjs && node --check src/ingest.mjs && node --check bin/hexwitness.mjs && node --check bin/hexwitness-mcp.mjs && node scripts/check-docs.mjs && npm test",
+    "check": "node --check src/daemon.mjs && node --check src/mcp.mjs && node --check src/ingest.mjs && node --check src/query.mjs && node --check src/capture-pack.mjs && node --check adapters/frida-jsonl/observer.js && node --check bin/hexwitness.mjs && node --check bin/hexwitness-mcp.mjs && node scripts/check-docs.mjs && npm test",
     "test:package": "node scripts/smoke-package.mjs",
     "public:audit": "node scripts/public-audit.mjs",
     "pack:dry": "npm pack --dry-run"

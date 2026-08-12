@@ -140,6 +140,74 @@ CREATE TABLE IF NOT EXISTS events(
   FOREIGN KEY(capture_id) REFERENCES captures(capture_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS capture_artifacts(
+  artifact_id TEXT PRIMARY KEY,
+  capture_id TEXT NOT NULL,
+  role TEXT NOT NULL,
+  path TEXT NOT NULL,
+  sha256 TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  media_type TEXT,
+  event_count INTEGER,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  UNIQUE(capture_id,path),
+  FOREIGN KEY(capture_id) REFERENCES captures(capture_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS markers(
+  marker_id TEXT PRIMARY KEY,
+  capture_id TEXT NOT NULL,
+  ordinal INTEGER NOT NULL,
+  ts_utc TEXT NOT NULL,
+  name TEXT NOT NULL,
+  note TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  UNIQUE(capture_id,ordinal),
+  FOREIGN KEY(capture_id) REFERENCES captures(capture_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS relationships(
+  relationship_id TEXT PRIMARY KEY,
+  capture_id TEXT NOT NULL,
+  source_ref TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  target_ref TEXT NOT NULL,
+  confidence REAL NOT NULL,
+  evidence_json TEXT NOT NULL DEFAULT '[]',
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY(capture_id) REFERENCES captures(capture_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS analysis_slices(
+  slice_id TEXT PRIMARY KEY,
+  build_id TEXT NOT NULL,
+  entity_key TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  start_address TEXT,
+  end_address TEXT,
+  text TEXT,
+  operations_json TEXT NOT NULL DEFAULT '[]',
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY(build_id) REFERENCES builds(build_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS gaps(
+  gap_id TEXT PRIMARY KEY,
+  build_id TEXT,
+  capture_id TEXT,
+  subject TEXT NOT NULL,
+  objective TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open',
+  priority INTEGER NOT NULL DEFAULT 2,
+  missing_json TEXT NOT NULL DEFAULT '[]',
+  recommendation TEXT,
+  created_utc TEXT NOT NULL,
+  updated_utc TEXT NOT NULL,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY(build_id) REFERENCES builds(build_id) ON DELETE SET NULL,
+  FOREIGN KEY(capture_id) REFERENCES captures(capture_id) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS import_runs(
   import_id TEXT PRIMARY KEY,
   source_path TEXT NOT NULL,
@@ -163,6 +231,47 @@ CREATE INDEX IF NOT EXISTS idx_evidence_build ON evidence(build_id, observed_utc
 CREATE INDEX IF NOT EXISTS idx_claims_subject ON claims(build_id, subject, predicate);
 CREATE INDEX IF NOT EXISTS idx_events_capture ON events(capture_id, ordinal);
 CREATE INDEX IF NOT EXISTS idx_events_address ON events(address);
+CREATE INDEX IF NOT EXISTS idx_events_kind_name ON events(capture_id,kind,name);
+CREATE INDEX IF NOT EXISTS idx_capture_artifacts_role ON capture_artifacts(capture_id,role);
+CREATE INDEX IF NOT EXISTS idx_markers_capture ON markers(capture_id,ordinal);
+CREATE INDEX IF NOT EXISTS idx_relationships_capture ON relationships(capture_id,kind);
+CREATE INDEX IF NOT EXISTS idx_slices_entity ON analysis_slices(build_id,entity_key,kind);
+CREATE INDEX IF NOT EXISTS idx_gaps_status ON gaps(status,priority,updated_utc);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts USING fts5(
+  entity_id UNINDEXED, build_id UNINDEXED, kind UNINDEXED,
+  name, stable_key, signature, decompiler, metadata
+);
+CREATE VIRTUAL TABLE IF NOT EXISTS events_fts USING fts5(
+  event_id UNINDEXED, capture_id UNINDEXED, source UNINDEXED, kind UNINDEXED, direction UNINDEXED,
+  name, summary, fields
+);
+
+CREATE TRIGGER IF NOT EXISTS entities_fts_insert AFTER INSERT ON entities BEGIN
+  INSERT INTO entities_fts(entity_id,build_id,kind,name,stable_key,signature,decompiler,metadata)
+  VALUES(new.entity_id,new.build_id,new.kind,new.name,new.stable_key,new.signature,new.decompiler,new.metadata_json);
+END;
+CREATE TRIGGER IF NOT EXISTS entities_fts_delete AFTER DELETE ON entities BEGIN
+  DELETE FROM entities_fts WHERE entity_id=old.entity_id;
+END;
+CREATE TRIGGER IF NOT EXISTS entities_fts_update AFTER UPDATE ON entities BEGIN
+  DELETE FROM entities_fts WHERE entity_id=old.entity_id;
+  INSERT INTO entities_fts(entity_id,build_id,kind,name,stable_key,signature,decompiler,metadata)
+  VALUES(new.entity_id,new.build_id,new.kind,new.name,new.stable_key,new.signature,new.decompiler,new.metadata_json);
+END;
+CREATE TRIGGER IF NOT EXISTS events_fts_insert AFTER INSERT ON events BEGIN
+  INSERT INTO events_fts(event_id,capture_id,source,kind,direction,name,summary,fields)
+  VALUES(new.event_id,new.capture_id,new.source,new.kind,new.direction,new.name,new.summary,new.fields_json);
+END;
+CREATE TRIGGER IF NOT EXISTS events_fts_delete AFTER DELETE ON events BEGIN
+  DELETE FROM events_fts WHERE event_id=old.event_id;
+END;
+CREATE TRIGGER IF NOT EXISTS events_fts_update AFTER UPDATE ON events BEGIN
+  DELETE FROM events_fts WHERE event_id=old.event_id;
+  INSERT INTO events_fts(event_id,capture_id,source,kind,direction,name,summary,fields)
+  VALUES(new.event_id,new.capture_id,new.source,new.kind,new.direction,new.name,new.summary,new.fields_json);
+END;
+
 `;
 
 export const ACTIVITY_SCHEMA_SQL = `

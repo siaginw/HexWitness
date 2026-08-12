@@ -48,6 +48,26 @@ export function validateRecord(input) {
       record.confidence = clampConfidence(record.confidence);
       if (record.address != null) record.address = canonicalAddress(record.address);
       break;
+    case "capture_artifact":
+      required(record, "capture_id"); required(record, "role"); required(record, "path");
+      required(record, "sha256"); required(record, "size_bytes");
+      break;
+    case "marker":
+      required(record, "capture_id"); required(record, "ordinal"); required(record, "name");
+      break;
+    case "relationship":
+      required(record, "capture_id"); required(record, "source_ref"); required(record, "kind"); required(record, "target_ref");
+      record.confidence = clampConfidence(record.confidence);
+      break;
+    case "slice":
+      required(record, "build_id"); required(record, "entity_key"); required(record, "kind");
+      if (record.start_address != null) record.start_address = canonicalAddress(record.start_address);
+      if (record.end_address != null) record.end_address = canonicalAddress(record.end_address);
+      break;
+    case "gap":
+      required(record, "subject"); required(record, "objective");
+      record.priority = Math.max(0, Math.min(4, Number(record.priority ?? 2)));
+      break;
   }
   return record;
 }

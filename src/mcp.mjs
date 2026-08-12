@@ -10,7 +10,7 @@ function content(value) {
 
 export function createMcpServer(client = new DaemonClient()) {
   const server = new McpServer({ name: "hexwitness", version: VERSION }, {
-    instructions: `HexWitness provides evidence-backed reverse-engineering queries. Start with hexwitness_health and hexwitness_builds. Resolve uncertain names with hexwitness_search before calling hexwitness_explain. Treat claims as hypotheses unless supported by evidence. Report contradictions rather than silently selecting one value.`,
+    instructions: `HexWitness provides evidence-backed reverse-engineering queries. Start with hexwitness_health and hexwitness_builds. Resolve uncertain names with hexwitness_search or hexwitness_query before calling hexwitness_explain. Keep class, UUID, type, offset, metadata, graph, and capture queries scoped to the exact build. Treat claims as hypotheses unless supported by evidence. Report contradictions rather than silently selecting one value.`,
   });
 
   server.registerTool("hexwitness_health", {
@@ -35,6 +35,18 @@ export function createMcpServer(client = new DaemonClient()) {
       limit: z.number().int().min(1).max(250).optional(),
     },
   }, async ({ query, build_id, kind, limit }) => content(await client.get("/v1/search", { q: query, build_id, kind, limit })));
+
+  server.registerTool("hexwitness_query", {
+    title: "Query indexed analysis",
+    description: "Structured cross-tool query over entities, optional edge kinds, evidence coverage, and runtime coverage. This is the safe generic replacement for arbitrary SQL.",
+    inputSchema: {
+      query: z.string().optional(), build_id: z.string().optional(), kinds: z.array(z.string()).optional(),
+      edge_kinds: z.array(z.string()).optional(), has_evidence: z.boolean().optional(), has_runtime: z.boolean().optional(),
+      limit: z.number().int().min(1).max(5000).optional(),
+    },
+  }, async ({ query, build_id, kinds, edge_kinds, has_evidence, has_runtime, limit }) => content(await client.get("/v1/query", {
+    q: query, build_id, kinds: kinds?.join(","), edge_kinds: edge_kinds?.join(","), has_evidence, has_runtime, limit,
+  })));
 
   server.registerTool("hexwitness_explain", {
     title: "Explain an entity",
@@ -77,6 +89,96 @@ export function createMcpServer(client = new DaemonClient()) {
     }, async (args) => content(await client.get(`/v1/${name}`, args)));
   }
 
+  server.registerTool("hexwitness_reach", {
+    title: "Traverse the analysis graph",
+    description: "Bounded incoming or outgoing graph traversal for calls, references, ownership, or arbitrary edge kinds.",
+    inputSchema: { build_id: z.string().optional(), address: z.string().optional(), stable_key: z.string().optional(), entity_id: z.string().optional(), direction: z.enum(["incoming", "outgoing"]).optional(), kind: z.string().optional(), depth: z.number().int().min(1).max(12).optional(), limit: z.number().int().min(1).max(5000).optional() },
+  }, async (args) => content(await client.get("/v1/reach", args)));
+
+  server.registerTool("hexwitness_dataflow", {
+    title: "Trace data flow",
+    description: "Traverse structured reads, writes, loads, stores, definitions, uses, aliases, parameters, and return edges.",
+    inputSchema: { build_id: z.string().optional(), address: z.string().optional(), stable_key: z.string().optional(), entity_id: z.string().optional(), direction: z.enum(["incoming", "outgoing", "both"]).optional(), depth: z.number().int().min(1).max(12).optional(), limit: z.number().int().min(1).max(5000).optional() },
+  }, async (args) => content(await client.get("/v1/dataflow", args)));
+
+  server.registerTool("hexwitness_slices", {
+    title: "Get analysis slices",
+    description: "Return retained decompiler, IL, SSA, basic-block, codec, or manually bounded slices for one entity.",
+    inputSchema: { build_id: z.string().optional(), address: z.string().optional(), stable_key: z.string().optional(), entity_id: z.string().optional(), kind: z.string().optional(), limit: z.number().int().min(1).max(500).optional() },
+  }, async (args) => content(await client.get("/v1/slices", args)));
+
+  server.registerTool("hexwitness_functions", {
+    title: "List functions",
+    description: "Inventory functions or methods for an exact build with optional name/signature filter.",
+    inputSchema: { build_id: z.string(), query: z.string().optional(), named: z.boolean().optional(), limit: z.number().int().min(1).max(5000).optional() },
+  }, async ({ build_id, query, named, limit }) => content(await client.get("/v1/functions", { build_id, q: query, named, limit })));
+
+  server.registerTool("hexwitness_classes", {
+    title: "Search object model",
+    description: "Search classes, types, fields, methods, vtables, slots, and enums for an exact build.",
+    inputSchema: { build_id: z.string(), query: z.string().optional(), limit: z.number().int().min(1).max(1000).optional() },
+  }, async ({ build_id, query, limit }) => content(await client.get("/v1/classes", { build_id, q: query, limit })));
+
+  server.registerTool("hexwitness_class", {
+    title: "Explain a class",
+    description: "Return one class/type with its fields, methods, inheritance, interfaces, and vtable relationships.",
+    inputSchema: { build_id: z.string().optional(), name: z.string().optional(), stable_key: z.string().optional(), entity_id: z.string().optional() },
+  }, async (args) => content(await client.get("/v1/class", args)));
+
+  server.registerTool("hexwitness_vtable", {
+    title: "Explain a vtable",
+    description: "Return one vtable or class and its slot-to-function relationships.",
+    inputSchema: { build_id: z.string().optional(), address: z.string().optional(), stable_key: z.string().optional(), entity_id: z.string().optional(), limit: z.number().int().min(1).max(500).optional() },
+  }, async (args) => content(await client.get("/v1/vtable", args)));
+
+  server.registerTool("hexwitness_uuid", {
+    title: "Resolve a UUID",
+    description: "Resolve a UUID/GUID across stable keys, names, and structured type metadata for an optional exact build.",
+    inputSchema: { uuid: z.string(), build_id: z.string().optional(), limit: z.number().int().min(1).max(500).optional() },
+  }, async (args) => content(await client.get("/v1/uuid", args)));
+
+  server.registerTool("hexwitness_types", {
+    title: "Query type registry",
+    description: "Query types, classes, enums, vtables, and slots exported by any supported analysis tool.",
+    inputSchema: { build_id: z.string(), query: z.string().optional(), kind: z.string().optional(), limit: z.number().int().min(1).max(2000).optional() },
+  }, async ({ build_id, query, kind, limit }) => content(await client.get("/v1/types", { build_id, q: query, kind, limit })));
+
+  server.registerTool("hexwitness_offsets", {
+    title: "Query field offsets",
+    description: "Query exported field offsets by exact build, owner class/type, field name, or signature.",
+    inputSchema: { build_id: z.string(), owner: z.string().optional(), query: z.string().optional(), limit: z.number().int().min(1).max(2000).optional() },
+  }, async ({ build_id, owner, query, limit }) => content(await client.get("/v1/offsets", { build_id, owner, q: query, limit })));
+
+  server.registerTool("hexwitness_metadata", {
+    title: "Resolve hashes, assets, codecs, and metadata",
+    description: "Generic metadata lookup for hashes, IDs, assets, resources, codecs, protocol fragments, or project-defined attributes without target-specific assumptions.",
+    inputSchema: { query: z.string(), build_id: z.string().optional(), kinds: z.array(z.string()).optional(), limit: z.number().int().min(1).max(2000).optional() },
+  }, async ({ query, build_id, kinds, limit }) => content(await client.get("/v1/metadata", { q: query, build_id, kinds: kinds?.join(","), limit })));
+
+  server.registerTool("hexwitness_decomp_search", {
+    title: "Search decompiler and IL slices",
+    description: "Search retained opt-in decompiler text and bounded IL/SSA/codec slices for an exact build.",
+    inputSchema: { build_id: z.string(), query: z.string(), kind: z.string().optional(), limit: z.number().int().min(1).max(1000).optional() },
+  }, async ({ build_id, query, kind, limit }) => content(await client.get("/v1/decomp/search", { build_id, q: query, kind, limit })));
+
+  server.registerTool("hexwitness_path", {
+    title: "Find the shortest graph path",
+    description: "Find a bounded shortest path between two build-scoped entities using optional edge-kind filtering.",
+    inputSchema: { build_id: z.string(), from_address: z.string().optional(), from_key: z.string().optional(), from_entity: z.string().optional(), to_address: z.string().optional(), to_key: z.string().optional(), to_entity: z.string().optional(), kind: z.string().optional(), direction: z.enum(["incoming", "outgoing"]).optional(), depth: z.number().int().min(1).max(20).optional() },
+  }, async (args) => content(await client.get("/v1/path", args)));
+
+  server.registerTool("hexwitness_edge_kinds", {
+    title: "List graph edge kinds",
+    description: "Inventory exported relationship kinds and source/target coverage for an optional build.",
+    inputSchema: { build_id: z.string().optional() },
+  }, async (args) => content(await client.get("/v1/edges/kinds", args)));
+
+  server.registerTool("hexwitness_compare_builds", {
+    title: "Compare binary builds",
+    description: "Compare stable entities across two builds and report additions, removals, and identity/signature/address changes.",
+    inputSchema: { left: z.string(), right: z.string(), limit: z.number().int().min(1).max(10000).optional() },
+  }, async (args) => content(await client.get("/v1/builds/compare", args)));
+
   server.registerTool("hexwitness_evidence", {
     title: "List evidence",
     description: "List static, dynamic, capture, documentary, synthetic, or manually asserted evidence with provenance and confidence.",
@@ -89,6 +191,54 @@ export function createMcpServer(client = new DaemonClient()) {
     inputSchema: { build_id: z.string().optional(), limit: z.number().int().min(1).max(500).optional() },
   }, async (args) => content(await client.get("/v1/contradictions", args)));
 
+  server.registerTool("hexwitness_coverage", {
+    title: "Report evidence coverage",
+    description: "Summarize naming, signature, decompilation, evidence, runtime, and capture coverage by build.",
+    inputSchema: { build_id: z.string().optional() },
+  }, async (args) => content(await client.get("/v1/coverage", args)));
+
+  server.registerTool("hexwitness_worklist", {
+    title: "List unresolved evidence gaps",
+    description: "Return prioritized static/runtime evidence gaps without guessing missing behavior.",
+    inputSchema: { build_id: z.string().optional(), capture_id: z.string().optional(), status: z.string().optional(), limit: z.number().int().min(1).max(500).optional() },
+  }, async (args) => content(await client.get("/v1/gaps/worklist", args)));
+
+  server.registerTool("hexwitness_captures", {
+    title: "List capture packs",
+    description: "List indexed, build-bound controlled runtime capture packs and quality metadata.",
+    inputSchema: { build_id: z.string().optional(), scenario: z.string().optional(), status: z.string().optional(), limit: z.number().int().min(1).max(500).optional() },
+  }, async (args) => content(await client.get("/v1/captures", args)));
+
+  server.registerTool("hexwitness_capture_detail", {
+    title: "Inspect a capture",
+    description: "Return capture metadata, artifacts, markers, relationships, and event-family counts.",
+    inputSchema: { capture_id: z.string() },
+  }, async (args) => content(await client.get("/v1/captures/detail", args)));
+
+  server.registerTool("hexwitness_capture_timeline", {
+    title: "Read capture timeline",
+    description: "Read a bounded normalized event timeline with source/kind/name filters.",
+    inputSchema: { capture_id: z.string(), after: z.number().int().min(0).optional(), source: z.string().optional(), kind: z.string().optional(), name: z.string().optional(), limit: z.number().int().min(1).max(5000).optional() },
+  }, async (args) => content(await client.get("/v1/captures/timeline", args)));
+
+  server.registerTool("hexwitness_capture_search", {
+    title: "Search capture evidence",
+    description: "Search normalized capture names, summaries, and safe structured fields across one or all captures.",
+    inputSchema: { query: z.string(), capture_id: z.string().optional(), direction: z.string().optional(), kind: z.string().optional(), limit: z.number().int().min(1).max(2000).optional() },
+  }, async ({ query, ...args }) => content(await client.get("/v1/captures/search", { ...args, q: query })));
+
+  server.registerTool("hexwitness_capture_graph", {
+    title: "Read capture relationship graph",
+    description: "Return normalized runtime relationships such as request-to-response, actor-to-archetype, state-to-consumer, or marker-to-event.",
+    inputSchema: { capture_id: z.string(), kind: z.string().optional(), limit: z.number().int().min(1).max(5000).optional() },
+  }, async (args) => content(await client.get("/v1/captures/graph", args)));
+
+  server.registerTool("hexwitness_capture_compare", {
+    title: "Compare captures",
+    description: "Compare normalized event families and report the first ordered divergence between two captures.",
+    inputSchema: { left: z.string(), right: z.string() },
+  }, async (args) => content(await client.get("/v1/captures/compare", args)));
+
   server.registerTool("hexwitness_activity_summary", {
     title: "Summarize retained tool usage",
     description: "Show operation counts, average latency, and failures. Arguments and result content are never retained.",
@@ -99,7 +249,7 @@ export function createMcpServer(client = new DaemonClient()) {
     title: "Start an evidence-first investigation",
     description: "Canonical agent workflow for a new binary question.",
     argsSchema: { question: z.string(), build_id: z.string().optional() },
-  }, ({ question, build_id }) => ({ messages: [{ role: "user", content: { type: "text", text: `Investigate: ${question}\nBuild: ${build_id ?? "select the matching build first"}\n\nUse HexWitness in this order: health, builds, search, explain, focused callers/callees/xrefs, evidence, contradictions. Separate proven facts from hypotheses. Identify the smallest missing dump or runtime observation needed to close each gap.` } }] }));
+  }, ({ question, build_id }) => ({ messages: [{ role: "user", content: { type: "text", text: `Investigate: ${question}\nBuild: ${build_id ?? "select the matching build first"}\n\nUse HexWitness in this order: health, builds, search/query, explain, the smallest focused graph/object/capture query, evidence, contradictions, gaps. Separate proven facts from hypotheses. Identify the smallest missing dump or runtime observation needed to close each gap.` } }] }));
 
   return server;
 }
