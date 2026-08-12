@@ -5,7 +5,9 @@ Use `node bin/hexwitness.mjs`, or run `npm link` once for the `hexwitness` comma
 ## Database and service
 
 ```bash
+hexwitness --version
 hexwitness setup [--client codex,cursor] [--viewer none|binary-ninja|ida|both]
+  [--binary-ninja-url URL] [--ida-dir PATH] [--yes|--dry-run|--json]
 hexwitness init [--db PATH]
 hexwitness ingest FILE [--db PATH]
 hexwitness serve [--db PATH] [--host HOST] [--port PORT]
@@ -15,7 +17,7 @@ hexwitness doctor
 hexwitness demo [--reset]
 ```
 
-`ingest` validates the complete JSONL before applying one atomic, idempotent transaction. `serve` is query-only. Non-local binds require `HEXWITNESS_API_TOKEN`.
+`ingest` validates the complete JSONL before applying one atomic, idempotent transaction. `serve` is query-only. Non-local binds require `HEXWITNESS_API_TOKEN`. Machine-readable `setup --json` never prompts when client and viewer are supplied.
 
 `memory` reports durable evidence counts, database size, latest ingest/capture, and the query-before-live-tool reuse policy.
 
@@ -71,7 +73,7 @@ hexwitness capture verify DIR
 hexwitness capture import DIR [--db PATH]
 ```
 
-Default roles: `bidirectional-wire`, `semantic-events`, `action-markers`, `screen-recording`, and `context`. `seal` rejects missing baseline evidence unless `--allow-incomplete` explicitly labels an exploratory pack.
+Default roles: `bidirectional-wire`, `semantic-events`, `action-markers`, `screen-recording`, and `context`. `seal` rejects missing or empty baseline evidence unless `--allow-incomplete` explicitly labels an exploratory pack. Failed normalization restores the active manifest so the operator can repair and retry it.
 
 ## Capture queries
 

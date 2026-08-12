@@ -19,6 +19,8 @@ Take ownership of the research path. Accept the user's objective in plain langua
 
 For multi-step investigations, maintain a concise task list and mark evidence lanes complete as they close. Avoid broad database dumps and repeated queries already answered by memory.
 
+For runtime collection, require exact build identity plus bidirectional wire, semantic events, timestamped markers, screen recording, and context. Normalize, seal, verify, then reason from the capture. Treat a missing baseline as a failed capture unless exploratory evidence was explicitly requested.
+
 ## Viewer and mutation safety
 
 Use Binary Ninja or IDA only after naming the missing edge. Keep inspection read-only unless the user explicitly authorizes viewer mutation. A decompiler observation remains provisional until the matching build-scoped JSONL is ingested and reproducible from HexWitness.

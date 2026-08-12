@@ -12,6 +12,7 @@ import { dumpGuide } from "../src/guides.mjs";
 import { addCaptureArtifact, addCaptureMarker, initCapturePack, inspectCapturePack, normalizeCapturePack, sealCapturePack, verifyCapturePack } from "../src/capture-pack.mjs";
 import { packCaptureDirectory } from "../src/capture-bundle.mjs";
 import { formatSetupSummary, runSetup } from "../src/setup.mjs";
+import { VERSION } from "../src/constants.mjs";
 import { analysisSlices, captureDetail, captureGraph, captureSearch, captureTimeline, classDetail, compareBuilds, compareCaptures, coverage, dataflow, decompSearch, edgeKinds, evidenceFor, fieldOffsets, functionInventory, gapWorklist, genericQuery, listBuilds, listCaptures, memoryStatus, metadataLookup, neighbors, objectModel, reachable, shortestPath, typeRegistry, uuidLookup, vtableDetail, xrefs } from "../src/query.mjs";
 
 function option(args, name, fallback = null) {
@@ -22,7 +23,7 @@ function option(args, name, fallback = null) {
 function print(value) { process.stdout.write(`${JSON.stringify(value, null, 2)}\n`); }
 
 function help() {
-  console.log(`HexWitness — evidence-first reverse engineering
+  console.log(`HexWitness ${VERSION} — evidence-first reverse engineering
 
 Usage:
   hexwitness init [--db PATH]
@@ -207,6 +208,7 @@ try {
       console.error(`Try: hexwitness explain 0x401120 --build toy-v1`);
       break;
     }
+    case "version": case "--version": case "-v": console.log(VERSION); break;
     case "help": case "--help": case "-h": case undefined: help(); break;
     default: throw new Error(`unknown command: ${command}`);
   }

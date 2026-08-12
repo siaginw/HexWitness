@@ -1,6 +1,6 @@
 # Getting started
 
-This path uses the synthetic fixture included with HexWitness. It proves the importer, SQLite schema, query layer, daemon, and CLI before you introduce private evidence.
+This path uses the synthetic fixture included with HexWitness. It proves the importer, SQLite schema, query layer, daemon, CLI, MCP, and installed agent path before you introduce private evidence.
 
 ## Prerequisites
 
@@ -13,6 +13,16 @@ Confirm Node:
 ```bash
 node --version
 ```
+
+## Fast install
+
+```bash
+npm install --global github:siaginw/HexWitness
+hexwitness setup
+hexwitness demo
+```
+
+Skip to [Verify local state](#verify-local-state), replacing `node bin/hexwitness.mjs` with `hexwitness`.
 
 ## Install from source
 

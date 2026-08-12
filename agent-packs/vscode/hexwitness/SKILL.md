@@ -16,6 +16,8 @@ Use the HexWitness MCP tools autonomously from Agent mode.
 5. Review evidence and contradictions.
 6. If evidence is incomplete, return the smallest build-scoped exporter request or controlled capture that will close it.
 
+For runtime capture work, require exact build identity, bidirectional wire, semantic events, timestamped action markers, screen recording, and context. Normalize, seal, and verify before reasoning from the run. Reject an incomplete baseline by default.
+
 Prefer retained evidence over live tools. Use connected Binary Ninja or IDA viewers only for a specific gap, and keep them read-only unless the user explicitly authorizes mutation. Treat live output as provisional until it is exported, ingested, and reproducible from HexWitness.
 
 Present the conclusion first. Label proof, inference, contradiction, and unknown separately. Never include credentials, raw private captures, or proprietary binary bytes in public output.

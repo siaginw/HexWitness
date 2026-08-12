@@ -38,17 +38,20 @@ Native skills load on demand, so they do not consume every conversation's contex
 4. uses the client's native MCP command when available;
 5. otherwise merges only HexWitness entries into the existing MCP JSON;
 6. creates a timestamped backup before editing an existing JSON file;
-7. refuses to replace an existing native MCP entry unless `--force` is explicit;
+7. refuses to replace an existing MCP entry unless `--force` is explicit when the client exposes entry inspection;
 8. installs or updates the selected client's tailored HexWitness skill/guide, backing up an existing copy under `~/.hexwitness/backups/agent-packs/`;
 9. installs the `hexwitness-agent` entrypoint, which starts the local read-only daemon automatically.
 
-The wizard never installs or downloads a commercial viewer. Binary Ninja and IDA integrations remain explicit, local, third-party dependencies.
+In `--json` mode the wizard never prompts, making it safe for bootstrap scripts and agents after `--client` and `--viewer` are supplied.
+
+The wizard never installs or downloads a commercial viewer. Binary Ninja and IDA remain explicit local dependencies. Viewer URLs must resolve to localhost; setup will not connect a powerful live-analysis endpoint over a remote URL.
 
 ## Non-interactive examples
 
 ```bash
 hexwitness setup --client codex --viewer none --yes
 hexwitness setup --client codex,cursor --viewer binary-ninja --yes
+hexwitness setup --client codex --viewer binary-ninja --binary-ninja-url http://127.0.0.1:24642/mcp --yes
 hexwitness setup --client claude-code --viewer ida --ida-dir C:/tools/ida-pro-mcp --yes
 hexwitness setup --client generic --viewer both --output ./team.mcp.json --yes
 ```
@@ -63,16 +66,16 @@ Add `--json` when a bootstrapper or another agent needs a machine-readable resul
 
 Use `--force` only when intentionally replacing an existing `hexwitness`, `binary_ninja_live`, or `ida_live` entry.
 
-## First-party versus third-party components
+## Component ownership
 
 | Component | Ownership |
 |---|---|
 | HexWitness evidence MCP, daemon, setup wizard, capture packer, and tailored agent skills | First-party HexWitness |
 | Binary Ninja and IDA JSONL exporters | First-party HexWitness |
-| Binary Ninja live control | Third-party [BinAssistMCP](https://github.com/symgraph/BinAssistMCP) |
-| IDA live/headless control | Third-party [`ida-pro-mcp` / `idalib-mcp`](https://github.com/mrexodia/ida-pro-mcp) |
+| Binary Ninja live control | [Official Binary Ninja MCP](https://dev-docs.binary.ninja/guide/mcp.html); community fallback optional |
+| IDA live/headless control | Upstream [`ida-pro-mcp` / `idalib-mcp`](https://github.com/mrexodia/ida-pro-mcp), endorsed by Hex-Rays |
 
-This split avoids maintaining weaker copies of mature viewer control servers. HexWitness owns the durable evidence model, memory, safety policy, promotion contract, and agent workflow.
+This split avoids maintaining weaker copies of mature viewer control servers. HexWitness owns durable evidence, build identity, memory, safety policy, promotion, and agent workflow.
 
 ## Why a few Python files remain
 

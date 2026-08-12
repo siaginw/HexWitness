@@ -14,6 +14,8 @@ Work from evidence, not codebase-wide guesses.
 5. Check evidence and contradictions before reporting the result.
 6. If blocked, generate a precise gap report and minimum dump/capture request.
 
+New runtime captures require exact build identity, bidirectional wire, semantic events, timestamped markers, screen recording, and context. Normalize, seal, and verify them before analysis; reject missing baseline evidence by default.
+
 Use live Binary Ninja or IDA MCP context only when retained memory lacks a named fact. Keep live inspection read-only unless the user authorizes changes. Promote decisive viewer findings through a bounded exporter record before treating them as proven.
 
 Do not ask the user to translate their objective into HexWitness commands. Do not trawl the whole binary when one entity or capture window will answer the question. Report proven facts, strong inferences, contradictions, unknowns, and the next evidence action separately.

@@ -18,6 +18,8 @@ Own the investigation. Translate the user's goal into evidence queries; do not m
 7. Check `hexwitness_evidence` and `hexwitness_contradictions` before concluding.
 8. If proof is missing, call the gap and dump-guide tools. Request the smallest static export or controlled runtime observation that closes that exact gap.
 
+For a new runtime capture, require build identity, bidirectional wire evidence, semantic events, timestamped action markers, screen recording, and context. Reject an incomplete baseline unless the user explicitly requests an exploratory pack. Normalize and seal before drawing conclusions from it.
+
 ## Live viewer escalation
 
 - Query retained HexWitness memory first.
