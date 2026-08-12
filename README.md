@@ -70,8 +70,14 @@ git clone https://github.com/siaginw/HexWitness.git
 cd HexWitness
 npm install
 npm run demo
-npm run setup
+npm run setup -- --client codex --viewer none --yes
+npm run doctor
 ```
+
+Replace `codex` with `claude-code`, `cursor`, `copilot`, or `generic` as needed. The setup command resolves the checkout's absolute local runtime path, installs guidance tailored to the selected agent, and writes the MCP connection without requiring a global install. Restart the selected AI client after setup, then ask it to call `hexwitness_health` and `hexwitness_contract`. Both must succeed before using private evidence.
+
+> [!IMPORTANT]
+> The checked-in [`.mcp.json.example`](.mcp.json.example) assumes `npm install --global hexwitness`. From a source checkout, run `npm run setup` instead of copying that example; setup records the correct local Node.js and bundled-runtime paths.
 
 HexWitness installs as one command. The service, MCP transport, installer, capture pipeline, and adapter catalog live behind that command:
 

@@ -36,9 +36,16 @@ hexwitness contract
 git clone https://github.com/siaginw/HexWitness.git
 cd HexWitness
 npm install
+npm run demo
+npm run setup -- --client codex --viewer none --yes
+npm run doctor
 ```
 
 `npm install` builds the same single-file runtime used by the installed package.
+
+Replace `codex` with `claude-code`, `cursor`, `copilot`, or `generic` as needed. This non-interactive bootstrap resolves the checkout's absolute local runtime path and installs client-specific agent guidance. Restart the selected AI client after setup, then ask it to call `hexwitness_health` and `hexwitness_contract`. Do not declare the integration ready until both calls succeed.
+
+The manual [`.mcp.json.example`](../.mcp.json.example) uses `hexwitness` as a command and therefore requires `npm install --global hexwitness`. For source checkouts, prefer `npm run setup`; it writes the correct local Node.js and bundled-runtime paths.
 
 ## Build the demo evidence graph
 
@@ -67,6 +74,12 @@ npm run setup
 ```
 
 Choose one or more AI clients and an optional Binary Ninja or IDA viewer. The generated MCP entry uses `hexwitness agent`, which initializes local state when needed and starts the read-only daemon automatically.
+
+After setup, restart the selected AI client and verify the actual MCP boundary from that client:
+
+> Call `hexwitness_health`, then `hexwitness_contract`. Report the configured evidence database and public contract version.
+
+Successful CLI checks prove the local runtime and database. Successful MCP calls prove the client reloaded and can reach that runtime.
 
 Use [the setup guide](INSTALLER.md) for non-interactive flags or manual configuration.
 
