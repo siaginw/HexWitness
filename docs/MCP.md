@@ -1,5 +1,7 @@
 # MCP integration
 
+Official MCP Registry identity: `io.github.siaginw/hexwitness`. The registry package resolves to the public `hexwitness` npm package and starts the stdio server with `hexwitness agent`.
+
 ```mermaid
 flowchart LR
   A["MCP agent"] -->|stdio| M["hexwitness agent"]

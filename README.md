@@ -84,6 +84,8 @@ hexwitness contract              # inspect the stable 1.x public contract
 hexwitness backup ./evidence.db  # create and verify a consistent snapshot
 ```
 
+Official MCP Registry identity: `io.github.siaginw/hexwitness`. Registry-aware clients discover the same local stdio server published through npm; its declared launch contract is `hexwitness agent`.
+
 The npm package ships one bundled runtime instead of exposing its internal module tree. Python remains only in the thin Binary Ninja, IDA, and Ghidra exporters because those products expose their supported automation APIs through Python.
 
 ## Why HexWitness feels different

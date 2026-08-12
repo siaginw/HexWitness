@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 import { ingestFile } from "../src/ingest.mjs";
 import { startDaemon } from "../src/daemon.mjs";
+import { VERSION } from "../src/constants.mjs";
 
 test("daemon serves read-only evidence queries and records safe activity", async () => {
   const root = mkdtempSync(join(tmpdir(), "hexwitness-daemon-"));
@@ -30,7 +31,7 @@ test("daemon serves read-only evidence queries and records safe activity", async
 
     const contract = await fetch(`http://127.0.0.1:${port}/v1/contract`).then((response) => response.json());
     assert.equal(contract.stability, "stable-1.x");
-    assert.equal(contract.version, "1.0.0");
+    assert.equal(contract.version, VERSION);
 
     const memory = await fetch(`http://127.0.0.1:${port}/v1/memory`).then((response) => response.json());
     assert.equal(memory.mode, "durable-evidence-first");

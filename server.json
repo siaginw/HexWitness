@@ -1,0 +1,28 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.siaginw/hexwitness",
+  "title": "HexWitness",
+  "description": "Durable, build-scoped reverse-engineering evidence memory and query tools for AI agents.",
+  "repository": {
+    "url": "https://github.com/siaginw/HexWitness",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/siaginw/HexWitness#readme",
+  "version": "1.0.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "hexwitness",
+      "version": "1.0.1",
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "agent"
+        }
+      ],
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

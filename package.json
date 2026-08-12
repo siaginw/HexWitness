@@ -1,6 +1,7 @@
 {
   "name": "hexwitness",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "mcpName": "io.github.siaginw/hexwitness",
   "description": "Evidence-first reverse-engineering workbench for humans and AI agents",
   "author": {
     "name": "SiagiNW",
@@ -18,12 +19,17 @@
     "reverse-engineering",
     "binary-analysis",
     "mcp",
+    "mcp-server",
     "binary-ninja",
     "ida",
     "ghidra",
     "frida",
     "evidence-graph",
-    "ai-agents"
+    "ai-agents",
+    "agent-memory",
+    "static-analysis",
+    "dynamic-analysis",
+    "decompiler"
   ],
   "type": "module",
   "license": "Apache-2.0",
@@ -47,6 +53,7 @@
     "agent-packs",
     ".mcp.json.example",
     ".mcp.ai-first.json.example",
+    "server.json",
     "AGENTS.md",
     "CONTRIBUTING.md",
     "CHANGELOG.md",
