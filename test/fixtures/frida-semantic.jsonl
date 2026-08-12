@@ -1,0 +1,2 @@
+{"ts_utc":"2026-01-01T00:00:00.100Z","source":"frida-semantic","kind":"function_enter","name":"dispatch_request","address":"0x401120","thread_id":42,"action_id":"send-request","fields":{"message_kind":7}}
+{"ts_utc":"2026-01-01T00:00:00.101Z","source":"frida-semantic","kind":"function_leave","name":"dispatch_request","address":"0x401120","thread_id":42,"action_id":"send-request","fields":{"return_value":0}}

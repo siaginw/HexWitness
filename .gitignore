@@ -1,0 +1,17 @@
+node_modules/
+__pycache__/
+*.pyc
+.hexwitness/
+*.db
+*.db-shm
+*.db-wal
+*.bndb
+*.i64
+*.idb
+*.gzf
+dist/
+coverage/
+*.log
+.env
+private/
+captures/raw/

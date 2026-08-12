@@ -1,0 +1,75 @@
+{
+  "name": "hexwitness",
+  "version": "0.1.0",
+  "description": "Evidence-first reverse-engineering workbench for humans and AI agents",
+  "author": {
+    "name": "siaginw",
+    "url": "https://github.com/siaginw"
+  },
+  "homepage": "https://github.com/siaginw/HexWitness#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/siaginw/HexWitness.git"
+  },
+  "bugs": {
+    "url": "https://github.com/siaginw/HexWitness/issues"
+  },
+  "keywords": [
+    "reverse-engineering",
+    "binary-analysis",
+    "mcp",
+    "binary-ninja",
+    "ida",
+    "ghidra",
+    "frida",
+    "evidence-graph",
+    "ai-agents"
+  ],
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "bin": {
+    "hexwitness": "bin/hexwitness.mjs",
+    "hexwitness-mcp": "bin/hexwitness-mcp.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "adapters/**/*.py",
+    "adapters/**/*.mjs",
+    "adapters/README.md",
+    "schemas",
+    "examples",
+    "docs",
+    "assets",
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "CHANGELOG.md",
+    "NOTICE",
+    "SECURITY.md",
+    "SUPPORT.md",
+    "THIRD_PARTY_NOTICES.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node bin/hexwitness.mjs serve",
+    "mcp": "node bin/hexwitness-mcp.mjs",
+    "demo": "node bin/hexwitness.mjs demo --reset",
+    "doctor": "node bin/hexwitness.mjs doctor",
+    "test": "node --test",
+    "check": "node --check src/daemon.mjs && node --check src/mcp.mjs && node --check src/ingest.mjs && node --check bin/hexwitness.mjs && node --check bin/hexwitness-mcp.mjs && node scripts/check-docs.mjs && npm test",
+    "test:package": "node scripts/smoke-package.mjs",
+    "public:audit": "node scripts/public-audit.mjs",
+    "pack:dry": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1"
+  }
+}

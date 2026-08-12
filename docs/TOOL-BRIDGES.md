@@ -1,0 +1,27 @@
+# Working with live reverse-engineering tools
+
+HexWitness provides durable memory. Binary Ninja, IDA, Ghidra, debugger, and Frida integrations provide live inspection. Agents may use both.
+
+```mermaid
+flowchart LR
+  A["Agent"] -->|MCP queries| H["HexWitness daemon"]
+  A -->|vendor MCP or plugin| S["Binary Ninja / IDA / Ghidra"]
+  A -->|debugger or instrumentation bridge| R["Runtime session"]
+  S -->|bounded JSONL export| H
+  R -->|normalized runtime evidence| H
+```
+
+## Promotion rule
+
+A live-tool answer is transient until exported. After confirming a useful result:
+
+1. Export the bounded function/type/reference set as `hexwitness-jsonl-v1`.
+2. Include build hash, tool version, and source address.
+3. Ingest it.
+4. Query HexWitness to confirm durable reconstruction.
+
+This avoids coupling HexWitness to commercial vendor sessions while allowing agents to use vendor-native MCP servers or plugins. It also ensures an analysis remains useful after the live GUI closes.
+
+## Why no universal remote-control proxy
+
+Vendor APIs have different mutation and licensing models. HexWitness's public daemon remains read-only. Live rename, patch, comment, and database-save operations belong in the vendor integration, where users can review permissions. HexWitness receives the resulting evidence through its stable import boundary.

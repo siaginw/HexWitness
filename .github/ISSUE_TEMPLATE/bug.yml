@@ -1,0 +1,52 @@
+name: Bug report
+description: Report reproducible HexWitness behavior
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not attach proprietary binaries, vendor databases, credentials, or raw private captures.
+  - type: input
+    id: version
+    attributes:
+      label: HexWitness version or commit
+      placeholder: 0.1.0 or commit SHA
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Windows 11, Node 24.17
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction
+      description: Use synthetic or sanitized evidence whenever possible.
+      placeholder: |
+        1. Run ...
+        2. Ingest ...
+        3. Query ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Evidence safety
+      options:
+        - label: I removed secrets, proprietary bytes, personal data, and unauthorized captures.
+          required: true
