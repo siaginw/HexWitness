@@ -33,6 +33,9 @@ function inspect(path, size) {
     [/[A-Za-z]:\\Users\\[^\\\s]+/g, "personal absolute path"],
     [/(?:\/Users|\/home)\/[A-Za-z0-9._-]+/g, "personal absolute path"],
     [/[A-Fa-f0-9]{1024,}/g, "large embedded hex payload"],
+    [new RegExp("\\bNew" + " World\\b", "gi"), "target-specific project reference"],
+    [new RegExp("\\bnw-" + "server\\b", "gi"), "target-specific project reference"],
+    [new RegExp("\\bGrid" + "Mate\\b", "g"), "target-specific protocol reference"],
   ];
   for (const [pattern, label] of checks) if (pattern.test(text)) findings.push(`${rel}: ${label}`);
 }

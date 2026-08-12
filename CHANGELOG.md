@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 — 2026-08-11
+
+- Generic sealed capture packs with baseline roles, action markers, scenario gates, artifact hashes, audit, verification, and safe normalization.
+- Runtime relationship graph, capture inventory, timelines, search, comparison, event-family deltas, and first-divergence analysis.
+- Structured daemon query, class/object-model, UUID, type registry, function inventory, vtable, dataflow, slice, reach, coverage, and gap-worklist APIs.
+- Expanded MCP and CLI parity for static and runtime investigations.
+- Extended JSONL records for capture artifacts, markers, relationships, analysis slices, and persistent gaps.
+- Deeper Binary Ninja, IDA, and Ghidra exports plus a generic narrow Frida observer.
+- Machine-readable adapter, scenario, and capture-pack schemas.
+- Target-agnostic capability matrix and complete capture-pack documentation.
+
 ## 0.1.0 — 2026-08-11
 
 - Generic, build-scoped SQLite evidence graph.

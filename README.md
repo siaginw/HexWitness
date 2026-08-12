@@ -7,49 +7,53 @@
   <a href="LICENSE"><img alt="Apache-2.0 license" src="https://img.shields.io/badge/license-Apache--2.0-7c3aed?style=flat-square"></a>
   <img alt="Node 22.13 or newer" src="https://img.shields.io/badge/node-%E2%89%A522.13-22c55e?style=flat-square">
   <img alt="MCP enabled" src="https://img.shields.io/badge/MCP-enabled-06b6d4?style=flat-square">
-  <img alt="Status: preview" src="https://img.shields.io/badge/status-preview-f59e0b?style=flat-square">
+  <img alt="Version 0.2" src="https://img.shields.io/badge/version-0.2-f59e0b?style=flat-square">
 </p>
 
 <p align="center">
-  <strong>HexWitness turns static analysis, runtime observations, protocol traces, and human conclusions into one durable evidence graph.</strong><br>
-  Query it from the CLI, a local REST daemon, or any MCP-capable coding agent.
+  <strong>Evidence memory for reverse engineering.</strong><br>
+  Static analysis, runtime traces, protocol observations, and human conclusions—one build-scoped graph that humans and agents can query.
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
-  <a href="#give-it-a-binary">Analyze a binary</a> ·
+  <a href="#capture-runtime-behavior">Capture runtime behavior</a> ·
   <a href="#connect-an-agent">Connect an agent</a> ·
-  <a href="docs/GETTING-STARTED.md">Documentation</a> ·
-  <a href="SECURITY.md">Security</a>
+  <a href="docs/CAPABILITY-MATRIX.md">Capability matrix</a> ·
+  <a href="docs/GETTING-STARTED.md">Documentation</a>
 </p>
 
 ---
 
-Reverse-engineering work rarely lives in one place. Function names sit in a decompiler. Runtime behavior lives in traces. Protocol findings land in scratch notes. Six weeks later, nobody remembers which build proved what.
+Function names live in a decompiler. Runtime behavior lives in traces. Protocol findings land in scratch files. Weeks later, the build changed and nobody remembers which observation proved the conclusion.
 
-HexWitness fixes that.
+HexWitness turns that scattered work into durable, evidence-backed knowledge.
 
 ```mermaid
 flowchart LR
-  S["Binary Ninja · IDA · Ghidra"] --> J["hexwitness-jsonl-v1"]
-  R["Frida · debuggers · protocol tools"] --> J
-  J --> I["Validated, idempotent ingest"]
-  I --> E[("Evidence graph")]
-  E --> D["Local query daemon"]
+  S["Binary Ninja · IDA · Ghidra"] --> J["Portable evidence JSONL"]
+  R["Frida · debuggers · wire observers"] --> P["Sealed capture pack"]
+  P --> J
+  J --> E[("Evidence graph")]
+  E --> D["Read-only daemon"]
   D --> C["CLI / REST"]
   D --> M["MCP agents"]
 ```
 
-## Why HexWitness
+## What it does
 
-| Capability | What it changes |
+| Capability | Result |
 |---|---|
-| **Build-scoped truth** | Every address and conclusion stays tied to an exact binary identity. |
-| **One evidence dossier** | `explain` combines identity, signatures, callers, callees, xrefs, runtime hits, claims, and provenance. |
-| **Agent-native access** | MCP tools give agents a small, predictable vocabulary instead of raw database access. |
-| **Honest uncertainty** | Conflicting claims coexist and surface as contradictions instead of silently overwriting each other. |
-| **Durable tool bridges** | Binary Ninja, IDA, Ghidra, and runtime tools export through one vendor-neutral JSONL contract. |
-| **Private by design** | Raw binaries, captures, credentials, and vendor databases stay outside the public evidence layer. |
+| **Build-scoped truth** | Every address, type, event, and claim stays attached to an exact artifact identity. |
+| **Deep static graph** | Functions, blocks, calls, references, types, classes, fields, vtables, dataflow, and bounded analysis slices. |
+| **Sealed capture packs** | Wire, semantic hooks, markers, video, context, checksums, quality gates, and safe normalization. |
+| **Runtime reconstruction** | Ordered timelines, request/response links, object relationships, search, comparison, and first divergence. |
+| **One evidence dossier** | `explain` combines identity, graph, runtime hits, claims, contradictions, and provenance. |
+| **Agent-native access** | A read-only daemon and MCP vocabulary for query, class, UUID, types, captures, gaps, and coverage. |
+| **Honest uncertainty** | Conflicting claims remain visible. Missing evidence becomes a concrete worklist, never a guessed answer. |
+| **Vendor-neutral interchange** | JSONL and adapter manifests prevent lock-in to one disassembler, debugger, or target. |
+
+HexWitness is target-agnostic. No application, game, protocol, address, packet layout, or private evidence is built into the core.
 
 ## Quick start
 
@@ -63,42 +67,27 @@ npm run demo
 npm start
 ```
 
-The daemon now listens on `http://127.0.0.1:7878`. In another terminal:
+The daemon listens on `http://127.0.0.1:7878`. In another terminal:
 
 ```bash
 node bin/hexwitness.mjs search dispatch
 node bin/hexwitness.mjs explain 0x401120 --build toy-v1
-node bin/hexwitness.mjs gaps 0x401120 --build toy-v1 --objective runtime
+node bin/hexwitness.mjs query dispatch --build toy-v1 --kinds function --edge-kinds call
+node bin/hexwitness.mjs coverage --build toy-v1
 ```
 
-Expected health check:
+The bundled demo is synthetic and redistributable. It contains no third-party binary data.
 
-```bash
-curl http://127.0.0.1:7878/v1/health
-```
+## Export a binary
 
-Want the `hexwitness` command while developing locally?
+Open a binary you are authorized to analyze, run an exporter, then ingest its JSONL:
 
-```bash
-npm link
-hexwitness doctor
-```
-
-The demo contains only synthetic, redistributable evidence. No third-party binary data ships with HexWitness.
-
-## Give it a binary
-
-1. Open a binary you are authorized to analyze.
-2. Run the exporter for your reverse-engineering tool.
-3. Ingest the resulting JSONL.
-4. Ask HexWitness about the exact build.
-
-| Tool | Exporter | Current status |
+| Tool | Adapter | Exports |
 |---|---|---|
-| Binary Ninja | [`adapters/binary-ninja/export_hexwitness.py`](adapters/binary-ninja/export_hexwitness.py) | Preview adapter |
-| IDA / IDAPython | [`adapters/ida/export_hexwitness.py`](adapters/ida/export_hexwitness.py) | Preview adapter |
-| Ghidra | [`adapters/ghidra/ExportHexWitness.py`](adapters/ghidra/ExportHexWitness.py) | Preview adapter |
-| Frida JSONL | [`adapters/frida-jsonl/normalize.mjs`](adapters/frida-jsonl/normalize.mjs) | Covered by synthetic workflow |
+| Binary Ninja | [`export_hexwitness.py`](adapters/binary-ninja/export_hexwitness.py) | Functions, strings, imports, calls, references, blocks, types, fields, optional HLIL |
+| IDA / IDAPython | [`export_hexwitness.py`](adapters/ida/export_hexwitness.py) | Functions, strings, imports, calls, references, blocks |
+| Ghidra | [`ExportHexWitness.py`](adapters/ghidra/ExportHexWitness.py) | Functions, calls, blocks, types, fields, enums |
+| Frida | [`observer.js`](adapters/frida-jsonl/observer.js) | Narrow semantic call events and markers; no arbitrary payload reads |
 
 ```bash
 hexwitness init
@@ -106,13 +95,42 @@ hexwitness ingest ./program.hexwitness.jsonl
 hexwitness serve
 ```
 
-The static exporters include build hash, architecture, image base, functions, and supported graph relationships. They do **not** include executable bytes. Decompiled text remains opt-in.
+Exporters hash the input executable and do not embed its bytes. Decompiled text is opt-in. Read the [binary dump guide](docs/BINARY-DUMP-GUIDE.md) before designing a large export.
 
-Read [What agents need from a binary](docs/BINARY-DUMP-GUIDE.md) before designing a large export. Agents can also call `hexwitness_dump_guide` or `hexwitness_gap_report` to request the smallest useful next dump.
+## Capture runtime behavior
+
+Create one isolated, build-bound evidence pack:
+
+```bash
+hexwitness capture init ./captures/roundtrip --scenario request-roundtrip --build sha256:BUILD --sha SHA256
+hexwitness capture add ./captures/roundtrip ./private/wire.jsonl --role bidirectional-wire
+hexwitness capture add ./captures/roundtrip ./private/hooks.jsonl --role semantic-events
+hexwitness capture add ./captures/roundtrip ./private/screen.mp4 --role screen-recording
+hexwitness capture add ./captures/roundtrip ./private/context.json --role context
+hexwitness capture mark ./captures/roundtrip request --note "perform one action"
+hexwitness capture seal ./captures/roundtrip
+hexwitness capture verify ./captures/roundtrip
+hexwitness capture import ./captures/roundtrip
+```
+
+The default gate requires bidirectional wire evidence, semantic events, action markers, a short screen recording, and context. Sealing fails closed when any baseline component is missing. Raw payload-like fields become length and SHA-256; common secret fields are removed recursively.
+
+See [sealed capture packs](docs/CAPTURE-PACKS.md) for collector contracts, directory layout, scenario markers, and privacy rules.
+
+## Query vocabulary
+
+The CLI, REST daemon, and MCP server expose the same investigation concepts:
+
+- `query`, `search`, `explain`, `callers`, `callees`, `xrefs`, and bounded `reach`;
+- `functions`, `classes`, `class`, `uuid`, `types`, `vtable`, `dataflow`, and `slices`;
+- `evidence`, `contradictions`, `gaps`, `worklist`, and `coverage`;
+- capture list, detail, timeline, search, graph, compare, and first divergence.
+
+The daemon publishes its current route manifest at `GET /v1/routes`.
 
 ## Connect an agent
 
-Start the daemon, then add the stdio MCP adapter to your client:
+Start the daemon, then configure the stdio MCP adapter:
 
 ```json
 {
@@ -129,110 +147,67 @@ Start the daemon, then add the stdio MCP adapter to your client:
 }
 ```
 
-The agent receives these tools:
-
-| MCP tool | Purpose |
-|---|---|
-| `hexwitness_health` | Verify service health and evidence counts |
-| `hexwitness_builds` | Select the exact indexed binary build |
-| `hexwitness_search` | Resolve functions, symbols, strings, types, and addresses |
-| `hexwitness_explain` | Retrieve a complete evidence dossier |
-| `hexwitness_callers` / `hexwitness_callees` | Traverse direct call relationships |
-| `hexwitness_xrefs` | Traverse code and data references |
-| `hexwitness_evidence` | Inspect observations, provenance, and confidence |
-| `hexwitness_contradictions` | Find active claims that disagree |
-| `hexwitness_gap_report` | Identify the smallest missing evidence for an objective |
-| `hexwitness_dump_guide` | Get a vendor-neutral export checklist |
-| `hexwitness_activity_summary` | Inspect privacy-preserving operation statistics |
-
-HexWitness also publishes the `hexwitness_start_investigation` prompt, which guides an agent through build selection, search, explanation, focused traversal, evidence review, and contradiction checks.
-
-See the [MCP guide](docs/MCP.md) and [agent contract](AGENTS.md).
-
-## What `explain` returns
-
-```json
-{
-  "entity": {
-    "name": "dispatch_request",
-    "address": "0x401120",
-    "signature": "int dispatch_request(Request *request)"
-  },
-  "callers": ["main"],
-  "callees": ["decode_message"],
-  "runtime": ["toy-capture-1:event:1"],
-  "claims": [
-    { "predicate": "handles_message_kind", "object": 7, "status": "verified" }
-  ],
-  "summary": {
-    "incoming_edges": 1,
-    "outgoing_edges": 2,
-    "evidence_items": 1,
-    "runtime_hits": 1
-  }
-}
-```
-
-The exact API response includes full IDs, provenance, metadata, and edge records. The example above is shortened for readability.
+An agent starts with `hexwitness_health`, selects an exact build, resolves a target, reads its dossier, and only then performs focused graph or capture queries. [`AGENTS.md`](AGENTS.md) contains the full evidence discipline.
 
 ## Evidence model
 
 - **Build** — exact artifact identity and analysis provenance.
-- **Entity** — function, symbol, string, type, class, field, global, or protocol object.
-- **Edge** — call, code reference, data reference, ownership, inheritance, or correlation.
-- **Evidence** — an observed fact with source, timestamp, classification, and confidence.
-- **Claim** — an interpretation linked to supporting or opposing evidence.
-- **Capture event** — an ordered runtime observation tied to a scenario and build.
-- **Contradiction** — active claims sharing a subject and predicate but disagreeing on value.
+- **Entity** — static or runtime object with a build-scoped stable key.
+- **Edge** — call, reference, control-flow, ownership, type, vtable, or dataflow relationship.
+- **Slice** — bounded IL, SSA, decompiler, block, codec, or manually reviewed analysis.
+- **Evidence** — observation with source, timestamp, classification, and confidence.
+- **Claim** — interpretation linked to supporting or opposing evidence.
+- **Capture pack** — sealed scenario, artifacts, markers, normalized events, and checksums.
+- **Relationship** — runtime correlation between events, markers, requests, responses, and objects.
+- **Gap** — prioritized missing artifact or observation needed to prove a behavior.
 
-Addresses are stored as canonical hexadecimal strings, preserving unsigned 64-bit values. Repeated imports are idempotent.
+Addresses are canonical hexadecimal strings, preserving unsigned 64-bit values. Imports are transactional and idempotent.
 
-## Privacy boundary
-
-HexWitness has three evidence zones:
+## Privacy and trust boundary
 
 ```text
-raw private material  ->  derived project evidence  ->  synthetic/public fixtures
+raw private material  →  normalized project evidence  →  synthetic/public fixtures
 ```
 
-- HTTP binds to localhost and exposes query operations only.
-- Ingestion is a local CLI operation.
-- Activity history stores operation names, argument hashes, timing, result counts, and an optional session hash—not prompts, arguments, returned evidence, or raw bytes.
-- A non-local bind requires `HEXWITNESS_API_TOKEN`.
-- Common binary, capture, database, credential, and payload patterns are blocked by the public-release audit.
+- The daemon binds to localhost and exposes read-only queries.
+- Ingestion and capture mutation remain local CLI operations.
+- A non-local bind requires `HEXWITNESS_API_TOKEN`; use TLS through a trusted tunnel or proxy.
+- Activity retention stores operation names, argument hashes, timing, result counts, and optional session hashes—not prompts or returned evidence.
+- The release audit rejects common credentials, proprietary binary formats, captures, dumps, oversized payloads, and personal absolute paths.
 
 Read the [privacy model](docs/PRIVACY.md) and [security policy](SECURITY.md).
 
 ## Documentation
 
-| Guide | Use it when… |
+| Guide | Purpose |
 |---|---|
-| [Getting started](docs/GETTING-STARTED.md) | You want a verified first run |
-| [CLI reference](docs/CLI.md) | You need exact command syntax |
-| [HTTP API](docs/API.md) | You are integrating scripts or another tool |
-| [MCP integration](docs/MCP.md) | You are connecting an AI agent |
-| [Binary dump guide](docs/BINARY-DUMP-GUIDE.md) | You need to know what to export |
-| [Adapter SDK](docs/ADAPTER-SDK.md) | You are adding another RE tool |
-| [Capture pipeline](docs/CAPTURE-PIPELINE.md) | You are correlating runtime behavior |
-| [Architecture](docs/ARCHITECTURE.md) | You want system boundaries and rationale |
-| [Tool bridges](docs/TOOL-BRIDGES.md) | You are pairing HexWitness with a live RE MCP/plugin |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Something does not start, ingest, or resolve |
+| [Getting started](docs/GETTING-STARTED.md) | Verified first run |
+| [Capability matrix](docs/CAPABILITY-MATRIX.md) | Generic parity scope and intentional boundaries |
+| [CLI reference](docs/CLI.md) | Commands and environment |
+| [HTTP API](docs/API.md) | Read-only integration surface |
+| [MCP integration](docs/MCP.md) | Agent setup and tool vocabulary |
+| [Adapter SDK](docs/ADAPTER-SDK.md) | Add another RE or runtime tool |
+| [Sealed capture packs](docs/CAPTURE-PACKS.md) | Collect, normalize, audit, compare, and import runtime evidence |
+| [Binary dump guide](docs/BINARY-DUMP-GUIDE.md) | Export the smallest sufficient evidence |
+| [Architecture](docs/ARCHITECTURE.md) | Components, boundaries, and identity model |
+| [Tool bridges](docs/TOOL-BRIDGES.md) | Pair live vendor tools with durable evidence |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Diagnose setup and ingestion issues |
 
-## Project status
+## Status
 
-HexWitness `0.1` is a preview release. The core database, importer, CLI, daemon, MCP surface, privacy audit, and synthetic workflow have automated coverage. Vendor GUI adapters are intentionally labeled preview until their compatibility matrix is tested against specific Binary Ninja, IDA, and Ghidra releases.
+HexWitness 0.2 defines and tests the generic evidence, query, capture-pack, comparison, CLI, REST, and MCP contracts with synthetic fixtures. Vendor GUI adapters remain compatibility-sensitive because their APIs change between releases; the core interchange does not.
 
-No benchmark, adoption, or compatibility claim is implied beyond the checks published in this repository.
+No benchmark, adoption, or universal vendor-version claim is implied beyond the checks published in this repository.
 
 ## Contributing
 
-Issues and focused pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting an adapter or fixture. Never attach proprietary binaries, vendor databases, credentials, or captures you cannot redistribute.
+Focused issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting an adapter or fixture. Never attach proprietary binaries, vendor databases, credentials, or captures you cannot redistribute.
 
 ## License
 
 Apache-2.0. Analyzed binaries, imported evidence, vendor SDKs, and reverse-engineering databases retain their own terms and are not part of HexWitness.
 
 <p align="center">
-  Built and maintained by <a href="https://github.com/siaginw">siaginw</a>.<br>
+  Built and maintained by <a href="https://github.com/siaginw">SiagiNW</a>.<br>
   <strong>Make every byte testify.</strong>
 </p>

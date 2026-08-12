@@ -13,7 +13,7 @@ Configure the MCP server using [`.mcp.json.example`](../.mcp.json.example). The 
 ## Investigation recipe
 
 ```text
-health → builds → search → explain → focused graph query → evidence → contradictions
+health → builds → search/query → explain → focused graph or capture query → evidence → contradictions → gaps
 ```
 
 ### 1. Establish build identity
@@ -30,7 +30,7 @@ Use search for incomplete symbols, strings, signatures, or address fragments. Pa
 
 ### 4. Test the claim
 
-Use callers/callees for control flow. Use xrefs for code and data use. Then inspect evidence and contradictions.
+Use callers/callees for control flow, dataflow/slices for value movement, class/UUID/types for object models, and capture timeline/graph/compare for runtime behavior. Then inspect evidence and contradictions.
 
 ### 5. Ask for a bounded new dump
 
