@@ -54,6 +54,39 @@ with open(output, "w", encoding="utf-8", newline="\n") as stream:
         emit(stream, "entity", build_id=build_id, kind="function", stable_key="fn:" + hex(start),
              name=idc.get_func_name(start), address=hex(start), size=function.end_ea - start,
              signature=idc.get_type(start))
+        flowchart = idaapi.FlowChart(function)
+        blocks = list(flowchart)
+        for index, block in enumerate(blocks):
+            block_key = "bb:%s:%d" % (hex(start), index)
+            emit(stream, "entity", build_id=build_id, kind="basic_block", stable_key=block_key,
+                 name="%s:block_%d" % (idc.get_func_name(start), index), address=hex(block.start_ea),
+                 size=block.end_ea - block.start_ea, metadata={"function": "fn:" + hex(start), "index": index})
+            emit(stream, "edge", build_id=build_id, kind="contains", source="fn:" + hex(start), target=block_key)
+            for successor in block.succs():
+                target_index = next((i for i, candidate in enumerate(blocks) if candidate.start_ea == successor.start_ea), None)
+                if target_index is not None:
+                    emit(stream, "edge", build_id=build_id, kind="control_flow", source=block_key,
+                         target="bb:%s:%d" % (hex(start), target_index))
+
+    for item in idautils.Strings():
+        address = int(item.ea)
+        key = "str:" + hex(address)
+        emit(stream, "entity", build_id=build_id, kind="string", stable_key=key,
+             name=str(item), address=hex(address), size=int(item.length), metadata={"encoding": str(item.strtype)})
+        for reference in idautils.CodeRefsTo(address, False):
+            owner = ida_funcs.get_func(reference)
+            if owner:
+                emit(stream, "edge", build_id=build_id, kind="references", source="fn:" + hex(owner.start_ea),
+                     target=key, source_address=hex(reference), target_address=hex(address))
+
+    def import_callback(ea, name, ordinal):
+        stable = "import:" + (name or "ordinal_%d" % ordinal)
+        emit(stream, "entity", build_id=build_id, kind="import", stable_key=stable,
+             name=name or stable, address=hex(ea), metadata={"ordinal": ordinal})
+        return True
+
+    for module_index in range(ida_nalt.get_import_module_qty()):
+        ida_nalt.enum_import_names(module_index, import_callback)
 
     for start in functions:
         for instruction in idautils.FuncItems(start):

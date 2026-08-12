@@ -8,7 +8,7 @@
   "properties": {
     "format": { "const": "hexwitness-jsonl-v1" },
     "record": {
-      "enum": ["build", "artifact", "entity", "edge", "evidence", "claim", "capture", "event"]
+      "enum": ["build", "artifact", "entity", "edge", "evidence", "claim", "capture", "event", "capture_artifact", "marker", "relationship", "slice", "gap"]
     },
     "build_id": { "type": "string", "minLength": 1 },
     "metadata": { "type": "object" }
@@ -49,7 +49,7 @@
         "properties": {
           "entity_id": { "type": "string" },
           "kind": {
-            "enum": ["function", "symbol", "string", "type", "class", "field", "global", "import", "export", "basic_block", "runtime_object", "protocol_message", "other"]
+            "enum": ["function", "symbol", "string", "type", "class", "field", "global", "import", "export", "basic_block", "runtime_object", "protocol_message", "method", "parameter", "local", "vtable", "vtable_slot", "enum", "constant", "section", "module", "thread", "resource", "asset", "codec", "protocol_fragment", "instruction", "other"]
           },
           "stable_key": { "type": "string", "minLength": 1 },
           "name": { "type": "string" },
@@ -147,6 +147,47 @@
           "fields": { "type": "object" }
         }
       }
+    },
+    {
+      "if": { "properties": { "record": { "const": "capture_artifact" } }, "required": ["record"] },
+      "then": {
+        "required": ["build_id", "capture_id", "role", "path", "sha256", "size_bytes"],
+        "properties": {
+          "capture_id": { "type": "string", "minLength": 1 }, "role": { "type": "string", "minLength": 1 },
+          "path": { "type": "string", "minLength": 1 }, "sha256": { "$ref": "#/$defs/sha256" },
+          "size_bytes": { "type": "integer", "minimum": 0 }, "media_type": { "type": "string" },
+          "event_count": { "type": ["integer", "null"], "minimum": 0 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "record": { "const": "marker" } }, "required": ["record"] },
+      "then": { "required": ["build_id", "capture_id", "ordinal", "name"], "properties": {
+        "capture_id": { "type": "string" }, "ordinal": { "type": "integer", "minimum": 1 },
+        "ts_utc": { "$ref": "#/$defs/timestamp" }, "name": { "type": "string", "minLength": 1 }, "note": { "type": ["string", "null"] }
+      } }
+    },
+    {
+      "if": { "properties": { "record": { "const": "relationship" } }, "required": ["record"] },
+      "then": { "required": ["build_id", "capture_id", "source_ref", "kind", "target_ref"], "properties": {
+        "capture_id": { "type": "string" }, "source_ref": { "type": "string" }, "kind": { "type": "string" },
+        "target_ref": { "type": "string" }, "confidence": { "$ref": "#/$defs/confidence" }, "evidence": { "type": "array" }
+      } }
+    },
+    {
+      "if": { "properties": { "record": { "const": "slice" } }, "required": ["record"] },
+      "then": { "required": ["build_id", "entity_key", "kind"], "properties": {
+        "entity_key": { "type": "string" }, "kind": { "type": "string" }, "start_address": { "$ref": "#/$defs/address" },
+        "end_address": { "$ref": "#/$defs/address" }, "text": { "type": "string" }, "operations": { "type": "array" }
+      } }
+    },
+    {
+      "if": { "properties": { "record": { "const": "gap" } }, "required": ["record"] },
+      "then": { "required": ["subject", "objective"], "properties": {
+        "capture_id": { "type": "string" }, "subject": { "type": "string" }, "objective": { "type": "string" },
+        "status": { "type": "string" }, "priority": { "type": "integer", "minimum": 0, "maximum": 4 },
+        "missing": { "type": "array" }, "recommendation": { "type": "string" }
+      } }
     }
   ],
   "$defs": {

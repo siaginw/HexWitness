@@ -11,7 +11,7 @@ function resolveEntityId(db, buildId, stableKey) {
   return db.prepare("SELECT entity_id FROM entities WHERE build_id=? AND stable_key=?").get(buildId, stableKey)?.entity_id ?? null;
 }
 
-function applyRecord(db, record) {
+export function applyRecord(db, record) {
   const metadata = json(record.metadata);
   switch (record.record) {
     case "build": {
@@ -95,7 +95,56 @@ function applyRecord(db, record) {
         record.summary ?? null, json(record.fields));
       return;
     }
+    case "capture_artifact": {
+      const id = record.artifact_id ?? stableId("capture-artifact", record.capture_id, record.path, record.sha256);
+      db.prepare(`INSERT OR REPLACE INTO capture_artifacts(artifact_id,capture_id,role,path,sha256,size_bytes,media_type,event_count,metadata_json)
+        VALUES(?,?,?,?,?,?,?,?,?)`).run(id, record.capture_id, record.role, record.path, record.sha256, record.size_bytes,
+        record.media_type ?? null, record.event_count ?? null, metadata);
+      return;
+    }
+    case "marker": {
+      const id = record.marker_id ?? stableId("marker", record.capture_id, record.ordinal, record.name);
+      db.prepare(`INSERT OR REPLACE INTO markers(marker_id,capture_id,ordinal,ts_utc,name,note,metadata_json)
+        VALUES(?,?,?,?,?,?,?)`).run(id, record.capture_id, record.ordinal, record.ts_utc ?? nowUtc(), record.name, record.note ?? null, metadata);
+      return;
+    }
+    case "relationship": {
+      const id = record.relationship_id ?? stableId("relationship", record.capture_id, record.source_ref, record.kind, record.target_ref);
+      db.prepare(`INSERT OR REPLACE INTO relationships(relationship_id,capture_id,source_ref,kind,target_ref,confidence,evidence_json,metadata_json)
+        VALUES(?,?,?,?,?,?,?,?)`).run(id, record.capture_id, record.source_ref, record.kind, record.target_ref, record.confidence,
+        json(record.evidence), metadata);
+      return;
+    }
+    case "slice": {
+      const id = record.slice_id ?? stableId("slice", record.build_id, record.entity_key, record.kind, record.start_address, record.end_address);
+      db.prepare(`INSERT OR REPLACE INTO analysis_slices(slice_id,build_id,entity_key,kind,start_address,end_address,text,operations_json,metadata_json)
+        VALUES(?,?,?,?,?,?,?,?,?)`).run(id, record.build_id, record.entity_key, record.kind, record.start_address ?? null,
+        record.end_address ?? null, record.text ?? null, json(record.operations ?? []), metadata);
+      return;
+    }
+    case "gap": {
+      const id = record.gap_id ?? stableId("gap", record.build_id, record.capture_id, record.subject, record.objective);
+      const created = record.created_utc ?? nowUtc();
+      db.prepare(`INSERT INTO gaps(gap_id,build_id,capture_id,subject,objective,status,priority,missing_json,recommendation,created_utc,updated_utc,metadata_json)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(gap_id) DO UPDATE SET status=excluded.status,priority=excluded.priority,
+        missing_json=excluded.missing_json,recommendation=excluded.recommendation,updated_utc=excluded.updated_utc,metadata_json=excluded.metadata_json`).run(
+        id, record.build_id ?? null, record.capture_id ?? null, record.subject, record.objective, record.status ?? "open", record.priority,
+        json(record.missing ?? []), record.recommendation ?? null, created, record.updated_utc ?? created, metadata,
+      );
+      return;
+    }
   }
+}
+
+export function ingestRecords(db, records) {
+  transaction(db, () => {
+    for (const input of records) applyRecord(db, validateRecord(input));
+    db.exec(`UPDATE edges SET source_entity_id=(SELECT entity_id FROM entities WHERE entities.build_id=edges.build_id AND entities.stable_key=edges.source_key)
+      WHERE source_entity_id IS NULL;
+      UPDATE edges SET target_entity_id=(SELECT entity_id FROM entities WHERE entities.build_id=edges.build_id AND entities.stable_key=edges.target_key)
+      WHERE target_entity_id IS NULL;`);
+  });
+  return records.length;
 }
 
 export async function readJsonl(path) {

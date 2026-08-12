@@ -1,0 +1,19 @@
+{
+  "hooks": [
+    {
+      "name": "example_export",
+      "export": "example_export",
+      "arguments": [
+        { "index": 0, "name": "context", "type": "pointer" },
+        { "index": 1, "name": "message_kind", "type": "u32" }
+      ],
+      "return_type": "i32"
+    },
+    {
+      "name": "module_relative_function",
+      "module": "authorized-target.exe",
+      "offset": "0x1234",
+      "arguments": []
+    }
+  ]
+}

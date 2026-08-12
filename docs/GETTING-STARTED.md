@@ -74,3 +74,7 @@ node bin/hexwitness.mjs search entry --build YOUR_BUILD_ID
 ```
 
 Keep generated JSONL and databases out of public repositories unless you have explicitly reviewed their provenance and redistribution rights.
+
+## Verify a capture pack
+
+After the synthetic workflow, follow [sealed capture packs](CAPTURE-PACKS.md) with evidence from a binary you are authorized to inspect. A complete pack proves the capture lifecycle, safe normalization, checksums, runtime timeline, and import path independently from any target-specific decoder.

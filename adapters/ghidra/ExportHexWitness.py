@@ -5,6 +5,8 @@ import hashlib
 import json
 import os
 from java.io import File
+from ghidra.program.model.block import BasicBlockModel
+from ghidra.program.model.data import Enum, Structure
 
 
 FORMAT = "hexwitness-jsonl-v1"
@@ -70,6 +72,16 @@ try:
             "size": int(function.getBody().getNumAddresses()),
             "signature": function.getSignature().getPrototypeString()
         })
+        blocks = list(BasicBlockModel(currentProgram).getCodeBlocksContaining(function.getBody(), monitor))
+        for index, block in enumerate(blocks):
+            block_key = "bb:0x%s:%d" % (start.toString(), index)
+            emit(stream, "entity", {
+                "build_id": build_id, "kind": "basic_block", "stable_key": block_key,
+                "name": "%s:block_%d" % (function.getName(), index),
+                "address": "0x" + block.getFirstStartAddress().toString(),
+                "size": int(block.getNumAddresses()), "metadata": {"function": "fn:0x" + start.toString(), "index": index}
+            })
+            emit(stream, "edge", {"build_id": build_id, "kind": "contains", "source": "fn:0x" + start.toString(), "target": block_key})
 
     for function in functions:
         source = "fn:0x" + function.getEntryPoint().toString()
@@ -81,6 +93,23 @@ try:
                 "target": "fn:0x" + callee.getEntryPoint().toString(),
                 "target_address": "0x" + callee.getEntryPoint().toString()
             })
+
+    data_manager = currentProgram.getDataTypeManager()
+    data_types = data_manager.getAllDataTypes()
+    while data_types.hasNext():
+        data_type = data_types.next()
+        kind = "class" if isinstance(data_type, Structure) else ("enum" if isinstance(data_type, Enum) else "type")
+        key = "type:" + data_type.getPathName()
+        emit(stream, "entity", {"build_id": build_id, "kind": kind, "stable_key": key,
+             "name": data_type.getName(), "size": max(0, int(data_type.getLength())),
+             "signature": data_type.getDisplayName(), "metadata": {"category": str(data_type.getCategoryPath())}})
+        if isinstance(data_type, Structure):
+            for component in data_type.getComponents():
+                member_key = "%s:field:%d:%s" % (key, component.getOffset(), component.getFieldName() or "unnamed")
+                emit(stream, "entity", {"build_id": build_id, "kind": "field", "stable_key": member_key,
+                     "name": component.getFieldName() or "unnamed", "size": int(component.getLength()),
+                     "signature": component.getDataType().getDisplayName(), "metadata": {"offset": int(component.getOffset()), "owner": key}})
+                emit(stream, "edge", {"build_id": build_id, "kind": "field", "source": key, "target": member_key})
 finally:
     stream.close()
 

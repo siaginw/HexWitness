@@ -9,6 +9,9 @@ HexWitness is intentionally local-first and read-only over HTTP.
 - Activity retention stores operation names, argument hashes, latency, and result counts. It does not retain prompts, decompiler text, raw packet bodies, or query arguments.
 - Exporters omit executable bytes. Decompiled text is opt-in.
 - Unknown evidence records fail closed during validation.
+- Capture-pack sealing rejects missing baseline evidence by default.
+- Capture normalization removes common credential fields and replaces payload-like values with length and SHA-256.
+- Artifact paths and checksums are verified before a sealed pack is accepted.
 
 Do not expose the daemon to another host without setting `HEXWITNESS_API_TOKEN` and placing it behind an authenticated transport. HexWitness is not a sandbox. Import only evidence you are authorized to possess.
 

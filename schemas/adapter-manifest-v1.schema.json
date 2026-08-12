@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/siaginw/HexWitness/main/schemas/adapter-manifest-v1.schema.json",
+  "title": "HexWitness adapter manifest",
+  "type": "object",
+  "required": ["schema", "id", "kind", "version", "output"],
+  "properties": {
+    "schema": { "const": "hexwitness-adapter-v1" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+    "kind": { "enum": ["static-exporter", "semantic-observer", "wire-observer", "normalizer", "screen-recorder", "marker-source"] },
+    "version": { "type": "string" },
+    "command": { "type": "string" },
+    "arguments": { "type": "array", "items": { "type": "string" } },
+    "output": { "type": "object", "required": ["role", "format"], "properties": {
+      "role": { "type": "string" }, "format": { "enum": ["hexwitness-jsonl-v1", "jsonl", "json", "pcap", "pcapng", "video", "text"] }
+    } },
+    "capabilities": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}
