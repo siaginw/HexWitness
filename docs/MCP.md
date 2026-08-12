@@ -2,18 +2,18 @@
 
 ```mermaid
 flowchart LR
-  A["MCP agent"] -->|stdio| M["hexwitness-mcp"]
+  A["MCP agent"] -->|stdio| M["hexwitness agent"]
   M -->|local HTTP| D["read-only daemon"]
   D --> E[("evidence.db")]
 ```
 
-Run `hexwitness setup`. The installed `hexwitness-agent` MCP entry starts the local read-only daemon automatically. For manual configuration, use [`.mcp.json.example`](../.mcp.json.example); for a complete memory-plus-viewer workspace, use [`.mcp.ai-first.json.example`](../.mcp.ai-first.json.example) and [the Binary Ninja/IDA bridge guide](VIEWER-MCP.md). `HEXWITNESS_AGENT_SESSION` is hashed before retention.
+Run `hexwitness setup`. The installed `hexwitness agent` MCP entry starts the local read-only daemon automatically. For manual configuration, use [`.mcp.json.example`](../.mcp.json.example); for a complete memory-plus-viewer workspace, use [`.mcp.ai-first.json.example`](../.mcp.ai-first.json.example) and [the Binary Ninja/IDA bridge guide](VIEWER-MCP.md). `HEXWITNESS_AGENT_SESSION` is hashed before retention.
 
 ## Tool families
 
 | Family | Tools |
 |---|---|
-| Service and memory | `health`, `memory_status`, `builds`, `activity_summary` |
+| Service and memory | `health`, `contract`, `memory_status`, `builds`, `activity_summary` |
 | Resolution | `search`, `query`, `explain` |
 | Graph | `callers`, `callees`, `xrefs`, `reach`, `path`, `dataflow`, `slices`, `edge_kinds` |
 | Object model | `functions`, `classes`, `class`, `vtable`, `uuid`, `types`, `offsets`, `metadata`, `decomp_search`, `compare_builds` |
@@ -27,13 +27,14 @@ Every tool advertises MCP annotations declaring it read-only, non-destructive, i
 ## Canonical agent sequence
 
 1. `hexwitness_health`
-2. `hexwitness_memory_status`
-3. `hexwitness_builds`
-4. `hexwitness_search` or `hexwitness_query`
-5. `hexwitness_explain`
-6. the smallest focused graph, object-model, or capture query
-7. `hexwitness_evidence` and `hexwitness_contradictions`
-8. `hexwitness_gap_report` or `hexwitness_worklist` for unresolved proof
+2. `hexwitness_contract` when diagnosing compatibility or automation
+3. `hexwitness_memory_status`
+4. `hexwitness_builds`
+5. `hexwitness_search` or `hexwitness_query`
+6. `hexwitness_explain`
+7. the smallest focused graph, object-model, or capture query
+8. `hexwitness_evidence` and `hexwitness_contradictions`
+9. `hexwitness_gap_report` or `hexwitness_worklist` for unresolved proof
 
 The memory tool makes reuse explicit: retained evidence first, live viewer only for a documented gap, then bounded export and ingestion. Activity history proves which operations ran without retaining arguments or result content.
 

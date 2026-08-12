@@ -26,6 +26,11 @@ test("daemon serves read-only evidence queries and records safe activity", async
     const routes = await fetch(`http://127.0.0.1:${port}/v1/routes`).then((response) => response.json());
     assert.equal(routes.routes.includes("/v1/class"), true);
     assert.equal(routes.routes.includes("/v1/captures/compare"), true);
+    assert.equal(routes.routes.includes("/v1/contract"), true);
+
+    const contract = await fetch(`http://127.0.0.1:${port}/v1/contract`).then((response) => response.json());
+    assert.equal(contract.stability, "stable-1.x");
+    assert.equal(contract.version, "1.0.0");
 
     const memory = await fetch(`http://127.0.0.1:${port}/v1/memory`).then((response) => response.json());
     assert.equal(memory.mode, "durable-evidence-first");

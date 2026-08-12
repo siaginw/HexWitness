@@ -1,6 +1,6 @@
 # Support
 
-Use GitHub Issues for reproducible bugs and bounded feature requests. Include the HexWitness version, Node.js version, operating system, command, and sanitized error output.
+Use GitHub Issues for reproducible bugs and bounded feature requests. Include the HexWitness version, Node.js version, operating system, command, sanitized error output, and sanitized results from `hexwitness contract` and `hexwitness doctor`.
 
 Do not upload analyzed binaries, decompiler databases, raw private captures, credentials, authentication material, or evidence you cannot redistribute.
 

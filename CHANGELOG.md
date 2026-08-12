@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.0.0 — 2026-08-12
+
+- Declared stable 1.x compatibility policies for CLI commands, REST v1, MCP tools, JSONL v1, and database schemas.
+- Added the machine-readable `hexwitness contract` command, REST contract route, and MCP contract tool.
+- Added fail-closed future database handling, tested schema migration, and consistent integrity-checked `hexwitness backup` snapshots.
+- Added installed-package upgrade verification and a configurable concurrent daemon soak gate.
+- Added CodeQL security analysis and tag-driven release packaging with SHA-256 checksums and GitHub build-provenance attestations.
+- Unified the installed product behind one bundled `hexwitness` command with zero runtime npm dependencies.
+- Updated all tailored agent skills and guides for the stable runtime and adapter-discovery contract.
+
+## 0.6.0 — 2026-08-11
+
+- Collapsed four public executables into one `hexwitness` command with `agent`, `mcp`, and `setup` subcommands.
+- Added a bundled Node.js distribution; installed packages no longer expose the internal source-module tree.
+- Added `hexwitness adapters [ID]` for machine-readable adapter discovery and exact installed paths.
+- Kept Python isolated to vendor-native Binary Ninja, IDA, and Ghidra exporters.
+- Updated setup-generated MCP entries to invoke the unified runtime.
+- Extended the installed-package journey to assert the one-command surface and adapter discovery.
+- Updated every tailored agent skill/guide to enforce the unified runtime and adapter-discovery contract.
+- Added an explicit public-release versus production-1.0 readiness boundary.
+
 ## 0.5.0 — 2026-08-11
 
 - Reframed the public experience around durable RE memory, reproducible proof, and agent-led workflows.

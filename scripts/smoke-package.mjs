@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -26,7 +26,14 @@ try {
   const tarball = join(scratch, packed[0].filename);
   const app = join(scratch, "app");
   npm(["install", "--prefix", app, "--ignore-scripts", tarball], { cwd: root, stdio: "pipe" });
-  const cli = join(app, "node_modules", "hexwitness", "bin", "hexwitness.mjs");
+  const installedRoot = join(app, "node_modules", "hexwitness");
+  const packageJson = JSON.parse(readFileSync(join(installedRoot, "package.json"), "utf8"));
+  if (Object.keys(packageJson.bin ?? {}).join(",") !== "hexwitness") throw new Error(`installed package should expose one executable: ${JSON.stringify(packageJson.bin)}`);
+  if (Object.keys(packageJson.dependencies ?? {}).length) throw new Error(`bundled package should not install runtime dependencies: ${JSON.stringify(packageJson.dependencies)}`);
+  for (const internal of ["src", "bin", "scripts", "test"]) {
+    if (existsSync(join(installedRoot, internal))) throw new Error(`installed package exposes internal directory: ${internal}`);
+  }
+  const cli = join(installedRoot, packageJson.bin.hexwitness);
   const state = join(scratch, "state");
   const run = spawnSync(process.execPath, [cli, "demo", "--reset"], {
     encoding: "utf8",
@@ -42,13 +49,11 @@ try {
   if (doctor.status !== 0) throw new Error(doctor.stderr || doctor.stdout || "installed doctor failed");
   const diagnosis = JSON.parse(doctor.stdout);
   if (!diagnosis.ok || !diagnosis.checks.every((check) => check.ok)) throw new Error(`unexpected doctor result: ${doctor.stdout}`);
-  const packageJson = JSON.parse(readFileSync(join(app, "node_modules", "hexwitness", "package.json"), "utf8"));
   const version = spawnSync(process.execPath, [cli, "--version"], { encoding: "utf8" });
   if (version.status !== 0 || version.stdout.trim() !== packageJson.version) throw new Error(`installed version mismatch: ${version.stdout || version.stderr}`);
-  for (const bin of ["hexwitness", "hexwitness-mcp", "hexwitness-agent", "hexwitness-setup"]) {
-    if (!packageJson.bin?.[bin]) throw new Error(`installed package missing bin entry: ${bin}`);
-  }
-  const setup = spawnSync(process.execPath, [join(app, "node_modules", "hexwitness", "bin", "hexwitness-setup.mjs"),
+  const adapters = spawnSync(process.execPath, [cli, "adapters"], { encoding: "utf8" });
+  if (adapters.status !== 0 || JSON.parse(adapters.stdout).adapters.length < 5) throw new Error(`installed adapters are not discoverable: ${adapters.stderr || adapters.stdout}`);
+  const setup = spawnSync(process.execPath, [cli, "setup",
     "--client", "codex,claude-code,cursor,vscode,claude-desktop,generic", "--viewer", "none", "--output", join(scratch, "mcp.json"), "--dry-run", "--yes", "--json"], { encoding: "utf8" });
   if (setup.status !== 0) throw new Error(setup.stderr || setup.stdout || "installed setup wizard failed");
   const setupResult = JSON.parse(setup.stdout);
@@ -56,7 +61,7 @@ try {
   const port = await freePort();
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [join(app, "node_modules", "hexwitness", "bin", "hexwitness-agent.mjs")],
+    args: [cli, "agent"],
     env: { ...process.env, HEXWITNESS_HOME: state, HEXWITNESS_PORT: String(port), HEXWITNESS_ACTIVITY_LOG: "0", HEXWITNESS_AGENT_SESSION: "package-smoke" },
     stderr: "pipe",
   });

@@ -1,5 +1,4 @@
 import { createServer } from "node:http";
-import { pathToFileURL } from "node:url";
 import { basename } from "node:path";
 import { loadConfig } from "./config.mjs";
 import { openEvidenceDb } from "./db.mjs";
@@ -12,6 +11,7 @@ import {
 } from "./query.mjs";
 import { dumpGuide } from "./guides.mjs";
 import { VERSION } from "./constants.mjs";
+import { publicContract } from "./contract.mjs";
 
 function send(response, status, body) {
   const payload = JSON.stringify(body, null, 2);
@@ -49,7 +49,7 @@ export function startDaemon(overrides = {}) {
   activity.purge();
   const startedAt = new Date().toISOString();
   const routes = [
-    "/v1/health", "/v1/routes", "/v1/memory", "/v1/builds", "/v1/builds/compare", "/v1/stats", "/v1/search", "/v1/query", "/v1/explain",
+    "/v1/health", "/v1/contract", "/v1/routes", "/v1/memory", "/v1/builds", "/v1/builds/compare", "/v1/stats", "/v1/search", "/v1/query", "/v1/explain",
     "/v1/gaps", "/v1/gaps/worklist", "/v1/coverage", "/v1/guide/dump", "/v1/callers", "/v1/callees",
     "/v1/xrefs", "/v1/reach", "/v1/dataflow", "/v1/slices", "/v1/functions", "/v1/classes", "/v1/class",
     "/v1/vtable", "/v1/uuid", "/v1/types", "/v1/offsets", "/v1/metadata", "/v1/decomp/search",
@@ -74,6 +74,7 @@ export function startDaemon(overrides = {}) {
           result = { ok: true, service: "hexwitness-daemon", version: VERSION, started_utc: startedAt, database: { file: basename(config.evidenceDb), read_only: true }, stats: stats(db) };
           break;
         case "/v1/builds": result = listBuilds(db); break;
+        case "/v1/contract": result = publicContract(); break;
         case "/v1/builds/compare": result = compareBuilds(db, url.searchParams.get("left"), url.searchParams.get("right"), { limit: url.searchParams.get("limit") }); break;
         case "/v1/routes": result = { version: VERSION, read_only: true, routes }; break;
         case "/v1/memory": result = { ...memoryStatus(db), activity: activity.summary(10) }; break;
@@ -152,5 +153,3 @@ export function startDaemon(overrides = {}) {
   process.once("SIGTERM", () => { void close(); });
   return { server, config, close };
 }
-
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) startDaemon();

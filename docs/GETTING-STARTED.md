@@ -22,7 +22,13 @@ hexwitness setup
 hexwitness demo
 ```
 
-Skip to [Verify local state](#verify-local-state), replacing `node bin/hexwitness.mjs` with `hexwitness`.
+Skip to [Verify local state](#verify-local-state).
+
+Inspect the machine-readable 1.x boundary at any time:
+
+```bash
+hexwitness contract
+```
 
 ## Install from source
 
@@ -31,6 +37,8 @@ git clone https://github.com/siaginw/HexWitness.git
 cd HexWitness
 npm install
 ```
+
+`npm install` builds the same single-file runtime used by the installed package.
 
 ## Build the demo evidence graph
 
@@ -44,10 +52,10 @@ This creates `.hexwitness/evidence.db` and imports `examples/toy-binary/evidence
 
 ```bash
 npm run doctor
-node bin/hexwitness.mjs stats
-node bin/hexwitness.mjs search dispatch
-node bin/hexwitness.mjs explain 0x401120 --build toy-v1
-node bin/hexwitness.mjs contradictions --build toy-v1
+npx --no-install hexwitness stats
+npx --no-install hexwitness search dispatch
+npx --no-install hexwitness explain 0x401120 --build toy-v1
+npx --no-install hexwitness contradictions --build toy-v1
 ```
 
 The contradiction query should return the two synthetic claims about message kinds 7 and 8. That disagreement is deliberate—it demonstrates that HexWitness preserves uncertainty.
@@ -58,7 +66,7 @@ The contradiction query should return the two synthetic claims about message kin
 npm run setup
 ```
 
-Choose one or more AI clients and an optional Binary Ninja or IDA viewer. The generated MCP entry uses `hexwitness-agent`, which initializes local state when needed and starts the read-only daemon automatically.
+Choose one or more AI clients and an optional Binary Ninja or IDA viewer. The generated MCP entry uses `hexwitness agent`, which initializes local state when needed and starts the read-only daemon automatically.
 
 Use [the setup guide](INSTALLER.md) for non-interactive flags or manual configuration.
 
@@ -73,11 +81,19 @@ The agent should choose and sequence the tools. You should not need to translate
 Run one adapter from [`adapters/`](../adapters/README.md), then:
 
 ```bash
-node bin/hexwitness.mjs ingest /path/to/program.hexwitness.jsonl
-node bin/hexwitness.mjs search entry --build YOUR_BUILD_ID
+npx --no-install hexwitness ingest /path/to/program.hexwitness.jsonl
+npx --no-install hexwitness search entry --build YOUR_BUILD_ID
 ```
 
 Keep generated JSONL and databases out of public repositories unless you have explicitly reviewed their provenance and redistribution rights.
+
+Before upgrading an evidence database, create a verified snapshot:
+
+```bash
+hexwitness backup ./backups/evidence-before-upgrade.db
+```
+
+HexWitness migrates supported older schemas on the next writable command. Newer, unsupported schemas fail closed.
 
 ## Verify a capture pack
 

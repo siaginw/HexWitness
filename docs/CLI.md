@@ -1,6 +1,6 @@
 # CLI reference
 
-Use `node bin/hexwitness.mjs`, or run `npm link` once for the `hexwitness` command.
+Install HexWitness and use the single `hexwitness` command. From a source checkout, `npm install` builds the same bundled command and the npm scripts invoke it.
 
 ## Database and service
 
@@ -15,11 +15,20 @@ hexwitness stats
 hexwitness memory
 hexwitness doctor
 hexwitness demo [--reset]
+hexwitness agent
+hexwitness mcp
+hexwitness adapters [ADAPTER_ID]
+hexwitness contract
+hexwitness backup OUTPUT [--db PATH]
 ```
 
 `ingest` validates the complete JSONL before applying one atomic, idempotent transaction. `serve` is query-only. Non-local binds require `HEXWITNESS_API_TOKEN`. Machine-readable `setup --json` never prompts when client and viewer are supplied.
 
 `memory` reports durable evidence counts, database size, latest ingest/capture, and the query-before-live-tool reuse policy.
+
+`agent` is the recommended MCP entry: it starts a missing local daemon and serves MCP over stdio. `mcp` serves MCP without daemon autostart. `adapters` returns the installed adapter catalog; pass an ID for its absolute path and capabilities.
+
+`contract` prints the stable 1.x compatibility surface. `backup` creates a consistent evidence-database snapshot, refuses overwrite, runs an integrity check, and returns its SHA-256.
 
 ## Static and evidence queries
 

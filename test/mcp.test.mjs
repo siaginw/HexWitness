@@ -5,7 +5,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createMcpServer } from "../src/mcp.mjs";
 
 test("MCP publishes the agent-first evidence vocabulary", async () => {
-  const fake = { get: async (path) => path === "/v1/health" ? { ok: true } : [] };
+  const fake = { get: async (path) => path === "/v1/health" ? { ok: true } : path === "/v1/contract" ? { stability: "stable-1.x" } : [] };
   const server = createMcpServer(fake);
   const client = new Client({ name: "hexwitness-test", version: "1.0.0" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -21,11 +21,13 @@ test("MCP publishes the agent-first evidence vocabulary", async () => {
         openWorldHint: false,
       }, `${tool.name} must advertise the read-only contract`);
     }
-    for (const expected of ["hexwitness_health", "hexwitness_memory_status", "hexwitness_search", "hexwitness_query", "hexwitness_explain", "hexwitness_gap_report", "hexwitness_dump_guide", "hexwitness_contradictions", "hexwitness_class", "hexwitness_uuid", "hexwitness_types", "hexwitness_offsets", "hexwitness_metadata", "hexwitness_decomp_search", "hexwitness_path", "hexwitness_compare_builds", "hexwitness_dataflow", "hexwitness_capture_timeline", "hexwitness_capture_compare"]) {
+    for (const expected of ["hexwitness_health", "hexwitness_contract", "hexwitness_memory_status", "hexwitness_search", "hexwitness_query", "hexwitness_explain", "hexwitness_gap_report", "hexwitness_dump_guide", "hexwitness_contradictions", "hexwitness_class", "hexwitness_uuid", "hexwitness_types", "hexwitness_offsets", "hexwitness_metadata", "hexwitness_decomp_search", "hexwitness_path", "hexwitness_compare_builds", "hexwitness_dataflow", "hexwitness_capture_timeline", "hexwitness_capture_compare"]) {
       assert.equal(names.has(expected), true, `missing ${expected}`);
     }
     const health = await client.callTool({ name: "hexwitness_health", arguments: {} });
     assert.match(health.content[0].text, /"ok": true/);
+    const contract = await client.callTool({ name: "hexwitness_contract", arguments: {} });
+    assert.match(contract.content[0].text, /stable-1.x/);
 
     const prompts = await client.listPrompts();
     const promptNames = new Set(prompts.prompts.map((prompt) => prompt.name));

@@ -10,15 +10,22 @@ Own the investigation. Translate the user's goal into evidence queries; do not m
 ## Investigation order
 
 1. Call `hexwitness_health`.
-2. Call `hexwitness_memory_status`, then `hexwitness_builds`.
-3. Select one exact build. Never reuse addresses across builds.
-4. Resolve the target with `hexwitness_search` or `hexwitness_query`.
-5. Read `hexwitness_explain` before traversing callers, callees, xrefs, paths, dataflow, slices, classes, UUIDs, fields, or vtables.
-6. For runtime behavior, inspect capture detail and markers, then narrow timeline, search, graph, and comparison queries.
-7. Check `hexwitness_evidence` and `hexwitness_contradictions` before concluding.
-8. If proof is missing, call the gap and dump-guide tools. Request the smallest static export or controlled runtime observation that closes that exact gap.
+2. For installation, upgrade, or automation questions, call `hexwitness_contract` and honor its 1.x boundary.
+3. Call `hexwitness_memory_status`, then `hexwitness_builds`.
+4. Select one exact build. Never reuse addresses across builds.
+5. Resolve the target with `hexwitness_search` or `hexwitness_query`.
+6. Read `hexwitness_explain` before traversing callers, callees, xrefs, paths, dataflow, slices, classes, UUIDs, fields, or vtables.
+7. For runtime behavior, inspect capture detail and markers, then narrow timeline, search, graph, and comparison queries.
+8. Check `hexwitness_evidence` and `hexwitness_contradictions` before concluding.
+9. If proof is missing, call the gap and dump-guide tools. Request the smallest static export or controlled runtime observation that closes that exact gap.
 
 For a new runtime capture, require build identity, bidirectional wire evidence, semantic events, timestamped action markers, screen recording, and context. Reject an incomplete baseline unless the user explicitly requests an exploratory pack. Normalize and seal before drawing conclusions from it.
+
+## Runtime contract
+
+- Use MCP tools for investigations. Use the CLI only for setup, diagnostics, import, and capture lifecycle work.
+- Treat `hexwitness` as the only installed command. MCP autostart is `hexwitness agent`; adapter discovery is `hexwitness adapters [ID]`.
+- Never depend on package-internal source, distribution, or wrapper paths. Resolve adapters through the catalog.
 
 ## Live viewer escalation
 

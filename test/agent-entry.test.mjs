@@ -20,7 +20,7 @@ test("agent entrypoint autostarts an empty local daemon and serves MCP", async (
   const port = await freePort();
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [resolve(import.meta.dirname, "../bin/hexwitness-agent.mjs")],
+    args: [resolve(import.meta.dirname, "../dist/hexwitness.mjs"), "agent"],
     env: {
       ...process.env,
       HEXWITNESS_HOME: root,

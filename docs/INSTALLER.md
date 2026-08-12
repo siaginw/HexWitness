@@ -17,6 +17,8 @@ From a source checkout, use `npm run setup`. The wizard can install for one or s
 
 It also installs the best supported native guidance for each selected agent and can add optional live-viewer entries for Binary Ninja, IDA, or both.
 
+Automation should call `hexwitness contract` (or MCP tool `hexwitness_contract`) before assuming a command, route, schema, or interchange boundary. That response is the stable machine-readable contract for the 1.x line.
+
 ## Agent-native guidance
 
 | Selected client | Installed guidance | Discovery path |
@@ -30,6 +32,8 @@ It also installs the best supported native guidance for each selected agent and 
 
 Native skills load on demand, so they do not consume every conversation's context. Their descriptions trigger on binary analysis, protocol reconstruction, runtime comparison, object-model mapping, evidence gaps, and live-finding promotion. Each pack uses client-native terminology while enforcing the same build identity, evidence, privacy, and read-only escalation contract.
 
+Every shipped pack also enforces the distribution boundary: use MCP for investigations, use the unified `hexwitness` command for operational work, resolve adapters through `hexwitness adapters`, and never rely on package-internal paths.
+
 ## What the wizard does
 
 1. asks which AI clients should receive HexWitness;
@@ -40,7 +44,7 @@ Native skills load on demand, so they do not consume every conversation's contex
 6. creates a timestamped backup before editing an existing JSON file;
 7. refuses to replace an existing MCP entry unless `--force` is explicit when the client exposes entry inspection;
 8. installs or updates the selected client's tailored HexWitness skill/guide, backing up an existing copy under `~/.hexwitness/backups/agent-packs/`;
-9. installs the `hexwitness-agent` entrypoint, which starts the local read-only daemon automatically.
+9. installs the unified `hexwitness agent` entrypoint, which starts the local read-only daemon automatically.
 
 In `--json` mode the wizard never prompts, making it safe for bootstrap scripts and agents after `--client` and `--viewer` are supplied.
 
@@ -77,8 +81,10 @@ Use `--force` only when intentionally replacing an existing `hexwitness`, `binar
 
 This split avoids maintaining weaker copies of mature viewer control servers. HexWitness owns durable evidence, build identity, memory, safety policy, promotion, and agent workflow.
 
-## Why a few Python files remain
+## One installed command, native adapters
 
-The product core, daemon, MCP server, setup wizard, capture packer, schemas, and query engine run on Node.js. Python is limited to thin adapters executed inside Binary Ninja, IDA, or Ghidra because those viewers expose their supported automation APIs through Python. Users should not have to orchestrate those scripts manually; the AI workflow and viewer bridge choose the bounded exporter when evidence promotion is required.
+The installed package exposes only `hexwitness`. Its service, MCP server, setup wizard, capture packer, and query engine are bundled into one runtime file. Use `hexwitness adapters` to discover the included exporters without searching the package tree.
+
+Python is limited to thin adapters executed inside Binary Ninja, IDA, or Ghidra because those viewers expose their supported automation APIs through Python. Users do not orchestrate those files as HexWitness services; the AI workflow and viewer bridge select the bounded exporter when evidence promotion is required.
 
 HexWitness does not currently ship a separate custom live-control MCP plugin for Binary Ninja or IDA. It ships its own evidence MCP and uses the mature upstream viewer MCP projects for live control. The first-party exporters are the stable boundary that converts viewer results into durable HexWitness memory.

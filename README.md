@@ -7,7 +7,7 @@
   <a href="LICENSE"><img alt="Apache-2.0 license" src="https://img.shields.io/badge/license-Apache--2.0-7c3aed?style=flat-square"></a>
   <img alt="Node 22.13 or newer" src="https://img.shields.io/badge/node-%E2%89%A522.13-22c55e?style=flat-square">
   <img alt="MCP enabled" src="https://img.shields.io/badge/MCP-enabled-06b6d4?style=flat-square">
-  <img alt="Version 0.5" src="https://img.shields.io/badge/version-0.5-f59e0b?style=flat-square">
+  <img alt="Version 1.0" src="https://img.shields.io/badge/version-1.0-f59e0b?style=flat-square">
 </p>
 
 <p align="center">
@@ -72,6 +72,19 @@ npm install
 npm run demo
 npm run setup
 ```
+
+HexWitness installs as one command. The service, MCP transport, installer, capture pipeline, and adapter catalog live behind that command:
+
+```bash
+hexwitness agent                 # daemon autostart + MCP for AI clients
+hexwitness serve                 # REST daemon only
+hexwitness adapters              # list every included viewer/runtime adapter
+hexwitness adapters binary-ninja # print one adapter's exact path and capabilities
+hexwitness contract              # inspect the stable 1.x public contract
+hexwitness backup ./evidence.db  # create and verify a consistent snapshot
+```
+
+The npm package ships one bundled runtime instead of exposing its internal module tree. Python remains only in the thin Binary Ninja, IDA, and Ghidra exporters because those products expose their supported automation APIs through Python.
 
 ## Why HexWitness feels different
 
@@ -209,13 +222,16 @@ Read [Privacy](docs/PRIVACY.md) and [Security](SECURITY.md) before importing sen
 | [AI-first workflows](docs/AI-FIRST-WORKFLOWS.md) | What should I ask the agent? |
 | [Capability matrix](docs/CAPABILITY-MATRIX.md) | What is complete, variable, or intentionally out of scope? |
 | [Quality contract](docs/QUALITY.md) | Which claims are machine-checked? |
+| [Stability policy](docs/STABILITY.md) | What remains compatible throughout 1.x? |
+| [Compatibility](docs/COMPATIBILITY.md) | Which runtimes and viewer boundaries are supported? |
+| [Release readiness](docs/RELEASE-READINESS.md) | What does the 1.0 claim include? |
 | [CLI](docs/CLI.md), [REST](docs/API.md), [MCP](docs/MCP.md) | What interfaces are available? |
 | [Architecture](docs/ARCHITECTURE.md) | How do the pieces fit? |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | What failed and how do I prove it? |
 
 ## Project status
 
-HexWitness 0.5 is an early public release. Synthetic gates cover its schema, importer, evidence graph, query engine, capture lifecycle, CLI, read-only daemon, MCP server, setup wizard, tailored agent skills, privacy audit, packaging, and the installed CLI → DB → daemon → MCP journey.
+HexWitness 1.0 is a stable public developer release. Automated gates cover schema migration, importer, evidence graph, query engine, capture lifecycle, unified CLI, bundled distribution, read-only daemon, concurrent query behavior, MCP server, setup wizard, tailored agent skills, privacy audit, packaging, installed upgrade, and the CLI → DB → daemon → MCP journey. The exact trust boundary is documented in [Release readiness](docs/RELEASE-READINESS.md).
 
 Commercial viewer APIs still vary by edition and release. HexWitness documents that boundary instead of claiming universal compatibility. See [Quality](docs/QUALITY.md) for the exact tested surface.
 

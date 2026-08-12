@@ -34,13 +34,13 @@ Set the same URL in `HEXWITNESS_URL` for the MCP adapter.
 
 ## MCP starts but tools fail
 
-The recommended `hexwitness-agent` entry starts a missing local daemon automatically. First run:
+The recommended `hexwitness agent` entry starts a missing local daemon automatically. First run:
 
 ```bash
 hexwitness doctor
 ```
 
-If the MCP entry uses the lower-level `hexwitness-mcp` command instead, start the daemon separately and confirm it:
+If the MCP entry uses the lower-level `hexwitness mcp` command instead, start the daemon separately and confirm it:
 
 ```bash
 curl http://127.0.0.1:7878/v1/health

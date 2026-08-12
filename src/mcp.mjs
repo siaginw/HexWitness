@@ -42,6 +42,12 @@ export function createMcpServer(client = new DaemonClient()) {
     inputSchema: {},
   }, async () => content(await client.get("/v1/health")));
 
+  registerReadOnlyTool("hexwitness_contract", {
+    title: "HexWitness public compatibility contract",
+    description: "Read the stable 1.x CLI, REST, MCP, interchange, and database compatibility contract.",
+    inputSchema: {},
+  }, async () => content(await client.get("/v1/contract")));
+
   registerReadOnlyTool("hexwitness_builds", {
     title: "List indexed builds",
     description: "List binary builds and provenance available for queries.",

@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run release:check
+      - run: npm run check
+      - run: npm run public:audit
+      - run: npm audit --audit-level=high
+      - run: npm run test:package
+      - run: npm run test:upgrade
+      - run: npm run test:load -- --duration-ms 15000 --concurrency 32
+      - name: Build release archive and checksum
+        run: |
+          mkdir release
+          npm pack --pack-destination release
+          npm sbom --omit dev --sbom-format cyclonedx > release/hexwitness-${GITHUB_REF_NAME}.cdx.json
+          cd release
+          sha256sum *.tgz *.cdx.json > SHA256SUMS
+      - name: Attest release archive
+        uses: actions/attest@v4
+        with:
+          subject-path: release/*.tgz
+      - name: Attest release SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: release/*.tgz
+          sbom-path: release/hexwitness-${{ github.ref_name }}.cdx.json
+      - uses: actions/upload-artifact@v6
+        with:
+          name: hexwitness-${{ github.ref_name }}
+          path: release/*
+          if-no-files-found: error
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" release/* --verify-tag --generate-notes --title "HexWitness ${GITHUB_REF_NAME}"

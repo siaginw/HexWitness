@@ -14,9 +14,16 @@ flowchart LR
   D --> L["Privacy-preserving activity DB"]
 ```
 
+## Distribution boundary
+
+Source remains modular for review and testing. Release builds bundle the Node.js core, daemon, MCP transport, setup wizard, and CLI into `dist/hexwitness.mjs`. The installed package exposes that file through one `hexwitness` command and installs no runtime npm dependency tree.
+
+Viewer exporters remain separate adapter assets because Binary Ninja, IDA, and Ghidra execute extensions inside their own runtimes. `hexwitness adapters [ID]` is the stable discovery boundary; users and agents do not need to know the package layout.
+
 ## Boundaries
 
 - **Adapters** know vendor APIs. Core does not.
+- **Distribution** exposes one command while preserving replaceable adapters.
 - **JSONL** is the stable interchange boundary.
 - **Capture packs** keep baseline artifacts, markers, hashes, quality gates, and normalized evidence together.
 - **Importer** is the only standard component that mutates evidence state.
@@ -35,6 +42,8 @@ Live viewer calls are not silently cached. Promotion is explicit—export a boun
 Reverse-engineering evidence is local, relational, highly queryable, and usually read-heavy. SQLite provides transactions, indexes, portable single-file storage, and simple backup without operating a separate database service. The interchange format prevents lock-in: rebuild the index from JSONL exports at any time.
 
 Entity and normalized-event text use FTS5 indexes with ordinary indexed-query fallback. The one-time schema migration backfills existing databases; later idempotent imports maintain both indexes through triggers.
+
+Schema changes are versioned. HexWitness 1.0 migrates schema 1 to schema 2 only through a writable open, retains imported evidence, and rejects future schema versions without mutation. Read-only services refuse a database that still needs migration, producing an actionable error instead of querying a partial shape. `hexwitness backup OUTPUT` creates and integrity-checks a consistent SQLite snapshot before an upgrade.
 
 ## Stable identity
 

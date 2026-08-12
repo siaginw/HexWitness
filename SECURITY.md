@@ -13,6 +13,9 @@ HexWitness is intentionally local-first and read-only over HTTP.
 - Capture normalization recursively removes common credential fields, including objects nested in arrays, and replaces payload-like values with length and SHA-256.
 - Artifact paths and checksums are verified before a sealed pack is accepted.
 - Empty baseline artifacts are rejected, and normalization failure restores an active, repairable pack.
+- Unsupported future database schemas fail closed before migration.
+- Tagged archives receive a CycloneDX SBOM, SHA-256 checksums, and GitHub provenance/SBOM attestations.
+- CodeQL security-extended analysis, dependency audit, and public-data audit run as release gates.
 
 Do not expose the daemon to another host without setting `HEXWITNESS_API_TOKEN` and placing it behind an authenticated transport. HexWitness is not a sandbox. Import only evidence you are authorized to possess.
 
