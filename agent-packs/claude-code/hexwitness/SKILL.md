@@ -18,6 +18,8 @@ Take ownership of the research path. Accept the user's objective in plain langua
 7. Inspect supporting evidence and contradictions before stating a conclusion.
 8. When evidence ends, use the gap report and dump guide to specify one bounded export or capture.
 
+For multi-step work, use `hexwitness_investigations` to resume matching work or `hexwitness_investigation_create` with a deterministic playbook, then maintain item/status/usage state. Inspect `hexwitness_failed_attempts` and run `hexwitness_evidence_challenge` before completion. Retrieval is discovery-only: follow the exact source record. Local tools are agent-callable through `hexwitness_local_tool_status` and `hexwitness_run_local_tool`; keep commands argv-only and bounded, never pass credentials, and do not promote output automatically. Diagnose adapters through `hexwitness_adapter_diagnostics`; Claude Code owns provider authentication.
+
 For multi-step investigations, maintain a concise task list and mark evidence lanes complete as they close. Avoid broad database dumps and repeated queries already answered by memory.
 
 For runtime collection, require exact build identity plus bidirectional wire, semantic events, timestamped markers, screen recording, and context. Normalize, seal, verify, then reason from the capture. Treat a missing baseline as a failed capture unless exploratory evidence was explicitly requested.

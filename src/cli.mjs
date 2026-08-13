@@ -15,10 +15,14 @@ import { formatSetupSummary, runSetup } from "./setup.mjs";
 import { VERSION } from "./constants.mjs";
 import { startAgent } from "./agent.mjs";
 import { startMcp } from "./mcp.mjs";
-import { adapterCatalog, adapterDetail } from "./adapters.mjs";
+import { adapterCatalog, adapterDetail, adapterDiagnostics } from "./adapters.mjs";
 import { publicContract } from "./contract.mjs";
 import { backupEvidenceDb } from "./backup.mjs";
 import { analysisSlices, captureDetail, captureGraph, captureSearch, captureTimeline, classDetail, compareBuilds, compareCaptures, coverage, dataflow, decompSearch, edgeKinds, evidenceFor, fieldOffsets, functionInventory, gapWorklist, genericQuery, listBuilds, listCaptures, memoryStatus, metadataLookup, neighbors, objectModel, reachable, shortestPath, typeRegistry, uuidLookup, vtableDetail, xrefs } from "./query.mjs";
+import { getPlaybook, listPlaybooks } from "./playbooks.mjs";
+import { addInvestigationItem, challengeEvidence, createInvestigation, investigationDetail, investigationReport, listFailedAttempts, listInvestigations, recordFailedAttempt, recordInvestigationUsage, setInvestigationStatus, updateInvestigationItem } from "./investigations.mjs";
+import { discover, discoveryContext } from "./discovery.mjs";
+import { localToolStatus, recordToolObservation, runLocalTool } from "./executor.mjs";
 
 function option(args, name, fallback = null) {
   const index = args.indexOf(name);
@@ -35,7 +39,8 @@ Usage:
   hexwitness setup [--client codex,cursor] [--viewer none|binary-ninja|ida|both]
   hexwitness agent
   hexwitness mcp
-  hexwitness adapters [ADAPTER_ID]
+  hexwitness adapters [ADAPTER_ID] [--diagnose]
+  hexwitness playbooks [PLAYBOOK_ID]
   hexwitness contract
   hexwitness backup OUTPUT [--db PATH]
   hexwitness ingest FILE [--db PATH]
@@ -79,6 +84,23 @@ Usage:
   hexwitness capture import DIR [--db PATH]
   hexwitness capture SOURCE_DIR [--out PACK_DIR] [--no-import]
   hexwitness stats
+  hexwitness investigation create TITLE --build BUILD [--question TEXT] [--playbook ID] [--budget UNITS]
+  hexwitness investigation list [--build BUILD] [--status STATUS]
+  hexwitness investigation show ID
+  hexwitness investigation add ID KIND TITLE [--ref ID] [--required]
+  hexwitness investigation item ID ITEM_ID pending|in_progress|done|blocked|skipped
+  hexwitness investigation status ID planned|active|blocked|complete|abandoned
+  hexwitness investigation use ID OPERATION [--units N] [--note TEXT]
+  hexwitness investigation report [--build BUILD] [--stale-days N]
+  hexwitness attempts [--investigation ID] [--build BUILD] [--subject TEXT]
+  hexwitness attempt record SUBJECT --build BUILD --method TEXT --expected TEXT --actual TEXT --lesson TEXT
+  hexwitness challenge SUBJECT --build BUILD
+  hexwitness challenge --investigation ID
+  hexwitness discover QUERY [--build BUILD] [--kinds entity,evidence]
+  hexwitness context QUERY [--build BUILD] [--max-chars N]
+  hexwitness tool status
+  hexwitness tool run EXECUTABLE [ARG...] [--root DIR] [--cwd DIR] [--timeout MS]
+  hexwitness tool run EXECUTABLE [ARG...] --record --build BUILD [--summary TEXT]
   hexwitness doctor
   hexwitness demo [--reset]
 
@@ -88,7 +110,8 @@ HEXWITNESS_PORT, HEXWITNESS_API_TOKEN, HEXWITNESS_ACTIVITY_RETENTION_DAYS.`);
 
 const args = process.argv.slice(2);
 const command = args[0];
-const config = loadConfig({ evidenceDb: option(args, "--db") ?? undefined, host: option(args, "--host") ?? undefined, port: option(args, "--port") ?? undefined });
+const controlArgs = command === "tool" && args.includes("--") ? args.slice(0, args.indexOf("--")) : args;
+const config = loadConfig({ evidenceDb: option(controlArgs, "--db") ?? undefined, host: option(controlArgs, "--host") ?? undefined, port: option(controlArgs, "--port") ?? undefined });
 
 try {
   switch (command) {
@@ -103,7 +126,11 @@ try {
     }
     case "agent": await startAgent(); break;
     case "mcp": await startMcp(); break;
-    case "adapters": print(args[1] ? adapterDetail(args[1]) : adapterCatalog()); break;
+    case "adapters": {
+      const id = args[1]?.startsWith("--") ? null : args[1];
+      print(args.includes("--diagnose") ? adapterDiagnostics(id) : id ? adapterDetail(id) : adapterCatalog()); break;
+    }
+    case "playbooks": print(args[1] ? getPlaybook(args[1]) : listPlaybooks()); break;
     case "contract": print(publicContract()); break;
     case "backup": {
       if (!args[1]) throw new Error("backup requires an output path");
@@ -216,6 +243,75 @@ try {
     }
     case "stats": {
       const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(stats(db)); db.close(); break;
+    }
+    case "investigation": {
+      const action = args[1];
+      if (action === "create") {
+        const db = openEvidenceDb(config.evidenceDb);
+        try { print(createInvestigation(db, { buildId: option(args, "--build"), title: args[2], question: option(args, "--question", ""), playbookId: option(args, "--playbook"), priority: option(args, "--priority", 2), operationBudget: option(args, "--budget") })); } finally { db.close(); }
+      } else if (action === "list") {
+        const db = openEvidenceDb(config.evidenceDb, { readOnly: true });
+        try { print(listInvestigations(db, { buildId: option(args, "--build"), status: option(args, "--status"), playbookId: option(args, "--playbook"), staleDays: option(args, "--stale-days", 7), limit: option(args, "--limit") })); } finally { db.close(); }
+      } else if (action === "show") {
+        const db = openEvidenceDb(config.evidenceDb, { readOnly: true });
+        try { print(investigationDetail(db, args[2])); } finally { db.close(); }
+      } else if (action === "add") {
+        const db = openEvidenceDb(config.evidenceDb);
+        try { print(addInvestigationItem(db, args[2], { kind: args[3], title: args[4], refId: option(args, "--ref"), required: args.includes("--required"), status: option(args, "--status", "pending"), details: option(args, "--details") ? JSON.parse(option(args, "--details")) : {} })); } finally { db.close(); }
+      } else if (action === "item") {
+        const db = openEvidenceDb(config.evidenceDb);
+        try { print(updateInvestigationItem(db, args[2], args[3], { status: args[4] })); } finally { db.close(); }
+      } else if (action === "status") {
+        const db = openEvidenceDb(config.evidenceDb);
+        try { print(setInvestigationStatus(db, args[2], args[3])); } finally { db.close(); }
+      } else if (action === "use") {
+        const db = openEvidenceDb(config.evidenceDb);
+        try { print(recordInvestigationUsage(db, args[2], { operation: args[3], units: option(args, "--units", 1), note: option(args, "--note"), source: option(args, "--source", "manual") })); } finally { db.close(); }
+      } else if (action === "report") {
+        const db = openEvidenceDb(config.evidenceDb, { readOnly: true });
+        try { print(investigationReport(db, { buildId: option(args, "--build"), staleDays: option(args, "--stale-days", 7) })); } finally { db.close(); }
+      } else throw new Error(`unknown investigation action: ${action ?? "<missing>"}`);
+      break;
+    }
+    case "attempts": {
+      const db = openEvidenceDb(config.evidenceDb, { readOnly: true });
+      try { print(listFailedAttempts(db, { investigationId: option(args, "--investigation"), buildId: option(args, "--build"), subject: option(args, "--subject"), limit: option(args, "--limit") })); } finally { db.close(); }
+      break;
+    }
+    case "attempt": {
+      if (args[1] !== "record") throw new Error("attempt requires action record");
+      const db = openEvidenceDb(config.evidenceDb);
+      try { print(recordFailedAttempt(db, { investigationId: option(args, "--investigation"), buildId: option(args, "--build"), subject: args[2], method: option(args, "--method"), expected: option(args, "--expected"), actual: option(args, "--actual"), lesson: option(args, "--lesson"), tool: option(args, "--tool"), toolVersion: option(args, "--tool-version"), evidenceIds: (option(args, "--evidence", "") ?? "").split(",").filter(Boolean) })); } finally { db.close(); }
+      break;
+    }
+    case "challenge": {
+      const db = openEvidenceDb(config.evidenceDb, { readOnly: true });
+      try { print(challengeEvidence(db, { investigationId: option(args, "--investigation"), buildId: option(args, "--build"), subject: args[1]?.startsWith("--") ? null : args[1] })); } finally { db.close(); }
+      break;
+    }
+    case "discover": case "context": {
+      const db = openEvidenceDb(config.evidenceDb, { readOnly: true });
+      const options = { query: args[1], buildId: option(args, "--build"), kinds: (option(args, "--kinds", "") ?? "").split(",").filter(Boolean), limit: option(args, "--limit"), maxChars: option(args, "--max-chars") };
+      try { print(command === "discover" ? discover(db, options) : discoveryContext(db, options)); } finally { db.close(); }
+      break;
+    }
+    case "tool": {
+      const action = args[1];
+      if (action === "status") { print(localToolStatus({ root: option(args, "--root") ?? process.cwd() })); break; }
+      if (action !== "run") throw new Error("tool requires action status or run");
+      const executable = args[2];
+      const separator = args.indexOf("--");
+      const localArgs = separator >= 0 ? args.slice(0, separator) : args;
+      const toolArgs = separator >= 0 ? args.slice(separator + 1) : args.slice(3).filter((value, index, all) => {
+        const previous = all[index - 1];
+        return !["--root", "--cwd", "--timeout", "--build", "--summary"].includes(value) && !["--root", "--cwd", "--timeout", "--build", "--summary"].includes(previous) && value !== "--record";
+      });
+      const receipt = await runLocalTool({ executable, args: toolArgs, cwd: option(localArgs, "--cwd"), timeoutMs: option(localArgs, "--timeout") }, { root: option(localArgs, "--root") ?? process.cwd() });
+      if (localArgs.includes("--record")) {
+        const db = openEvidenceDb(config.evidenceDb);
+        try { print({ receipt, observation: recordToolObservation(db, option(localArgs, "--build"), receipt, option(localArgs, "--summary")) }); } finally { db.close(); }
+      } else print(receipt);
+      break;
     }
     case "doctor": print(doctor(config)); break;
     case "demo": {

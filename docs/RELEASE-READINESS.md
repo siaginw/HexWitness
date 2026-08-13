@@ -5,7 +5,7 @@ HexWitness 1.0 is a stable public developer product. “Stable” covers the doc
 ## Ready now
 
 - One installed `hexwitness` command with a bundled runtime and no runtime npm dependency tree.
-- Build-scoped JSONL interchange, transactional SQLite evidence memory, read-only daemon, MCP, CLI, sealed captures, and adapter discovery.
+- Build-scoped JSONL interchange, transactional SQLite evidence memory, durable investigations, failed-attempt reuse, deterministic challenge, discovery-only retrieval, read-only daemon/dashboard, MCP, bounded local tools, CLI, sealed captures, and adapter diagnostics.
 - Tailored skills or MCP guidance for Codex, Claude Code, Cursor, VS Code/Copilot, Claude Desktop, and generic clients.
 - Synthetic source, package, privacy, dependency, setup, and end-to-end MCP gates.
 - GitHub installation and source-checkout workflows.

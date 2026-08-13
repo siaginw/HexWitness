@@ -20,6 +20,16 @@ hexwitness mcp
 hexwitness adapters [ADAPTER_ID]
 hexwitness contract
 hexwitness backup OUTPUT [--db PATH]
+hexwitness playbooks [PLAYBOOK_ID]
+hexwitness investigation create TITLE --build BUILD [--playbook ID] [--budget UNITS]
+hexwitness investigation list|show|add|item|status|use|report ...
+hexwitness attempts [--investigation ID] [--build BUILD]
+hexwitness attempt record SUBJECT --build BUILD --method TEXT --expected TEXT --actual TEXT --lesson TEXT
+hexwitness challenge SUBJECT --build BUILD
+hexwitness discover QUERY [--build BUILD] [--kinds entity,evidence]
+hexwitness context QUERY [--build BUILD] [--max-chars N]
+hexwitness tool status
+hexwitness tool run EXECUTABLE [ARG...] [--root DIR] [--cwd DIR] [--timeout MS]
 ```
 
 `ingest` validates the complete JSONL before applying one atomic, idempotent transaction. `serve` is query-only. Non-local binds require `HEXWITNESS_API_TOKEN`. Machine-readable `setup --json` never prompts when client and viewer are supplied.
@@ -29,6 +39,8 @@ hexwitness backup OUTPUT [--db PATH]
 `agent` is the recommended MCP entry: it starts a missing local daemon and serves MCP over stdio. `mcp` serves MCP without daemon autostart. `adapters` returns the installed adapter catalog; pass an ID for its absolute path and capabilities.
 
 `contract` prints the stable 1.x compatibility surface. `backup` creates a consistent evidence-database snapshot, refuses overwrite, runs an integrity check, and returns its SHA-256.
+
+`tool run` has no environment enable gate. It executes one built-in-allowlisted local utility without a shell, with a real-path-bounded working directory, and returns a capped receipt. The process is not OS-sandboxed. `--record --build BUILD` retains an observation record but never creates a claim. Use `--` before tool arguments that overlap HexWitness options.
 
 ## Static and evidence queries
 

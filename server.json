@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/siaginw/HexWitness#readme",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "hexwitness",
-      "version": "1.0.1",
+      "version": "1.1.0",
       "packageArguments": [
         {
           "type": "positional",

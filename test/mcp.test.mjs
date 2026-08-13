@@ -13,7 +13,16 @@ test("MCP publishes the agent-first evidence vocabulary", async () => {
   try {
     const listed = await client.listTools();
     const names = new Set(listed.tools.map((tool) => tool.name));
+    const mutationTools = new Set(["hexwitness_investigation_create", "hexwitness_investigation_add_item", "hexwitness_investigation_update_item", "hexwitness_investigation_set_status", "hexwitness_investigation_record_usage", "hexwitness_failed_attempt_record"]);
     for (const tool of listed.tools) {
+      if (tool.name === "hexwitness_run_local_tool") {
+        assert.deepEqual(tool.annotations, { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true });
+        continue;
+      }
+      if (mutationTools.has(tool.name)) {
+        assert.deepEqual(tool.annotations, { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false });
+        continue;
+      }
       assert.deepEqual(tool.annotations, {
         readOnlyHint: true,
         destructiveHint: false,
@@ -21,7 +30,7 @@ test("MCP publishes the agent-first evidence vocabulary", async () => {
         openWorldHint: false,
       }, `${tool.name} must advertise the read-only contract`);
     }
-    for (const expected of ["hexwitness_health", "hexwitness_contract", "hexwitness_memory_status", "hexwitness_search", "hexwitness_query", "hexwitness_explain", "hexwitness_gap_report", "hexwitness_dump_guide", "hexwitness_contradictions", "hexwitness_class", "hexwitness_uuid", "hexwitness_types", "hexwitness_offsets", "hexwitness_metadata", "hexwitness_decomp_search", "hexwitness_path", "hexwitness_compare_builds", "hexwitness_dataflow", "hexwitness_capture_timeline", "hexwitness_capture_compare"]) {
+    for (const expected of ["hexwitness_health", "hexwitness_contract", "hexwitness_memory_status", "hexwitness_search", "hexwitness_query", "hexwitness_explain", "hexwitness_gap_report", "hexwitness_dump_guide", "hexwitness_contradictions", "hexwitness_class", "hexwitness_uuid", "hexwitness_types", "hexwitness_offsets", "hexwitness_metadata", "hexwitness_decomp_search", "hexwitness_path", "hexwitness_compare_builds", "hexwitness_dataflow", "hexwitness_capture_timeline", "hexwitness_capture_compare", "hexwitness_discover", "hexwitness_discovery_context", "hexwitness_local_tool_status", "hexwitness_run_local_tool", "hexwitness_evidence_challenge", ...mutationTools]) {
       assert.equal(names.has(expected), true, `missing ${expected}`);
     }
     const health = await client.callTool({ name: "hexwitness_health", arguments: {} });
@@ -31,7 +40,7 @@ test("MCP publishes the agent-first evidence vocabulary", async () => {
 
     const prompts = await client.listPrompts();
     const promptNames = new Set(prompts.prompts.map((prompt) => prompt.name));
-    for (const expected of ["hexwitness_start_investigation", "hexwitness_compare_runtime_behavior", "hexwitness_promote_live_finding"]) {
+    for (const expected of ["hexwitness_start_investigation", "hexwitness_compare_runtime_behavior", "hexwitness_promote_live_finding", "hexwitness_challenge_investigation"]) {
       assert.equal(promptNames.has(expected), true, `missing ${expected}`);
     }
 

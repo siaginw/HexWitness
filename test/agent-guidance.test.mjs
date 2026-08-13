@@ -23,6 +23,10 @@ test("every supported native agent receives its own skill pack", () => {
     assert.match(guidance, /hexwitness agent/);
     assert.match(guidance, /hexwitness adapters \[ID\]/);
     assert.match(guidance, /hexwitness_contract/);
+    assert.match(guidance, /hexwitness_investigation_create/);
+    assert.match(guidance, /hexwitness_failed_attempts/);
+    assert.match(guidance, /hexwitness_evidence_challenge/);
+    assert.match(guidance, /hexwitness_run_local_tool/);
     assert.match(guidance, /Never depend on package-internal/);
   }
 });
@@ -57,5 +61,6 @@ test("generic clients receive a portable guide beside their MCP config", () => {
     assert.match(readFileSync(result.target, "utf8"), /Drive reverse-engineering investigations/);
     assert.match(readFileSync(result.target, "utf8"), /hexwitness agent/);
     assert.match(readFileSync(result.target, "utf8"), /hexwitness adapters \[ID\]/);
+    assert.match(readFileSync(result.target, "utf8"), /hexwitness_investigation_create/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

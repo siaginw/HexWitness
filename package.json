@@ -1,6 +1,6 @@
 {
   "name": "hexwitness",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "mcpName": "io.github.siaginw/hexwitness",
   "description": "Evidence-first reverse-engineering workbench for humans and AI agents",
   "author": {

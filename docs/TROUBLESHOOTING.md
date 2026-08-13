@@ -56,6 +56,18 @@ Confirm your Binary Ninja edition includes the official MCP server. Enable `ui.m
 
 If using BinAssistMCP instead, pass its endpoint explicitly with `--binary-ninja-url`.
 
+Run `hexwitness adapters --diagnose` or call `hexwitness_adapter_diagnostics` first. A detected executable proves only local visibility; commercial license/API compatibility still requires one bounded acceptance run inside the vendor host.
+
+## Local tool is not found or allowlisted
+
+Run:
+
+```bash
+hexwitness tool status
+```
+
+The local runner has no environment enable switch. It resolves a fixed RE-oriented command allowlist from the current PATH and accepts a project-local executable whose real path stays under the selected root. Use the exact listed command name or local path. The runner is argv-only and cwd-rooted but not OS-sandboxed. Provider credentials belong to the AI client and must not be passed as tool arguments.
+
 ## Import rejected with an unsafe numeric address
 
 JavaScript numbers cannot exactly represent every 64-bit virtual address. Export addresses as strings:

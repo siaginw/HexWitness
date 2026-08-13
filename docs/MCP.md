@@ -21,10 +21,14 @@ Run `hexwitness setup`. The installed `hexwitness agent` MCP entry starts the lo
 | Object model | `functions`, `classes`, `class`, `vtable`, `uuid`, `types`, `offsets`, `metadata`, `decomp_search`, `compare_builds` |
 | Evidence | `evidence`, `contradictions`, `gap_report`, `dump_guide`, `coverage`, `worklist` |
 | Runtime | `captures`, `capture_detail`, `capture_timeline`, `capture_search`, `capture_graph`, `capture_compare` |
+| Investigation | `playbooks`, `investigations`, `investigation_detail`, `investigation_report`, `failed_attempts`, `evidence_challenge` |
+| Investigation mutation | `investigation_create`, `investigation_add_item`, `investigation_update_item`, `investigation_set_status`, `investigation_record_usage`, `failed_attempt_record` |
+| Retrieval | `discover`, `discovery_context` (discovery-only; exact follow-up required) |
+| Local analysis | `local_tool_status`, `run_local_tool` |
 
 All tool names carry the `hexwitness_` prefix.
 
-Every tool advertises MCP annotations declaring it read-only, non-destructive, idempotent, and closed-world. These annotations help clients plan safely; the daemon independently enforces GET-only behavior.
+Every evidence/query tool advertises read-only, non-destructive, idempotent, closed-world MCP annotations. Investigation-ledger mutations are non-read-only, non-destructive, non-idempotent, and closed-world. `hexwitness_run_local_tool` is deliberately non-read-only, potentially destructive, non-idempotent, and open-world. With `record=true` plus an exact `build_id`, it retains only `tool-observation` evidence; it never creates a claim. The daemon remains GET-only and cannot execute tools.
 
 ## Canonical agent sequence
 
@@ -47,6 +51,7 @@ The memory tool makes reuse explicit: retained evidence first, live viewer only 
 | `hexwitness_start_investigation` | Drive a complete memory-first question, escalating only explicit gaps to a live viewer |
 | `hexwitness_compare_runtime_behavior` | Compare working/failing captures, find the first divergence, and resolve its static consumer |
 | `hexwitness_promote_live_finding` | Convert a transient Binary Ninja or IDA result into a bounded export and ingest handoff |
+| `hexwitness_challenge_investigation` | Adversarially review evidence, opposition, contradictions, gaps, and repeated failures |
 
 These prompts let the user state the investigation goal instead of manually sequencing MCP calls. The agent still exposes each individual tool for auditability and advanced control.
 

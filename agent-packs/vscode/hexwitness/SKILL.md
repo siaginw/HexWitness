@@ -17,6 +17,8 @@ Use the HexWitness MCP tools autonomously from Agent mode.
 6. Review evidence and contradictions.
 7. If evidence is incomplete, return the smallest build-scoped exporter request or controlled capture that will close it.
 
+For multi-step work, use `hexwitness_investigations` to resume matching work or `hexwitness_investigation_create` with a deterministic playbook, then maintain item/status/usage state. Inspect `hexwitness_failed_attempts` and run `hexwitness_evidence_challenge` before completion. Retrieval is discovery-only until the exact source record is opened. Local analysis tools are agent-callable through `hexwitness_local_tool_status` and `hexwitness_run_local_tool`; never pass secrets or auto-promote tool output. Diagnose adapters through `hexwitness_adapter_diagnostics`; Copilot owns provider authentication.
+
 For runtime capture work, require exact build identity, bidirectional wire, semantic events, timestamped action markers, screen recording, and context. Normalize, seal, and verify before reasoning from the run. Reject an incomplete baseline by default.
 
 ## Runtime contract

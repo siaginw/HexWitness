@@ -24,6 +24,8 @@ For every question, the agent should:
 6. check supporting evidence and contradictions;
 7. answer when the retained evidence is sufficient;
 8. otherwise generate a gap report, use a live viewer read-only, and promote only the bounded result.
+9. for multi-step work, persist the investigation, read failed attempts, use an operation budget, and challenge evidence before completion.
+10. use discovery only to find exact records; use local tools only through the bounded receipt-producing runner and never auto-promote their output.
 
 The MCP prompt `hexwitness_start_investigation` encodes this loop. Users do not need to know which individual tool should run first.
 

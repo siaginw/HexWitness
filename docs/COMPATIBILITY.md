@@ -8,7 +8,7 @@
 | Windows | Current GitHub-hosted Windows runner | Full source suite and public audit |
 | Linux | Current GitHub-hosted Ubuntu runner | Full suite, package, upgrade, load, release |
 | macOS | Current GitHub-hosted macOS runner | Full source suite and public audit |
-| SQLite evidence DB | Schema 1 migration; schema 2 current | Retention migration and future-version rejection |
+| SQLite evidence DB | Schema 1/2 migration; schema 3 current | Retention migration and future-version rejection |
 | MCP | Model Context Protocol stdio through bundled SDK | Installed CLI → daemon → MCP evidence query |
 
 ## Reverse-engineering tools

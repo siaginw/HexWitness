@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 — 2026-08-13
+
+- Added durable build-bound investigations, deterministic playbooks, operation budgets, completion gates, and failed-attempt memory.
+- Added deterministic evidence challenges that expose opposition, contradictions, unsupported claims, gaps, and repeated failures without changing confidence.
+- Added agent-callable local analysis tools with truthful MCP annotations, argv-only execution, cwd/timeout/output boundaries, credential-environment scrubbing, executable and artifact hashes, and observation-only receipts.
+- Added cross-record discovery-only retrieval with exact authoritative follow-ups.
+- Added adapter runtime diagnostics and updated every tailored agent skill for evidence freshness, provider-key separation, local tools, and challenges.
+- Added truthful MCP investigation mutations so MCP-only agents can create, maintain, budget, challenge, and complete durable work without a shell.
+- Added a loopback-only read-only investigation dashboard.
+- Migrated the evidence database to schema 3 while retaining schema 1 and 2 upgrade support.
+
 ## 1.0.1 — 2026-08-12
 
 - Added verified npm and official MCP Registry discovery metadata.

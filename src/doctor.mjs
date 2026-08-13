@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { loadConfig } from "./config.mjs";
 import { openEvidenceDb } from "./db.mjs";
 import { stats } from "./query.mjs";
-import { adapterCatalog } from "./adapters.mjs";
+import { adapterCatalog, adapterDiagnostics } from "./adapters.mjs";
 import { isSupportedNode, publicContract } from "./contract.mjs";
 import { SCHEMA_VERSION } from "./constants.mjs";
 
@@ -22,6 +22,7 @@ export function doctor(overrides = {}) {
   }
   const adapters = adapterCatalog().adapters;
   checks.push({ check: "adapters", ok: adapters.every((adapter) => existsSync(adapter.absolute_path)), detail: { count: adapters.length, ids: adapters.map((adapter) => adapter.id) } });
+  checks.push({ check: "adapter_runtime_diagnostics", ok: true, detail: adapterDiagnostics() });
   if (existsSync(config.evidenceDb)) {
     try {
       const db = openEvidenceDb(config.evidenceDb, { readOnly: true });

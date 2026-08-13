@@ -6,6 +6,7 @@ export const PUBLIC_COMMANDS = Object.freeze([
   "types", "offsets", "metadata", "decomp-search", "path", "edge-kinds", "compare-builds", "reach", "dataflow",
   "callers", "callees", "xrefs", "vtable", "slices", "evidence", "worklist", "coverage", "captures",
   "capture-detail", "capture-timeline", "capture-search", "capture-graph", "capture-compare", "capture", "stats",
+  "investigation", "attempt", "attempts", "challenge", "playbooks", "discover", "context", "tool",
   "doctor", "demo", "version", "help",
 ]);
 
@@ -29,7 +30,7 @@ export function publicContract() {
       backup: "consistent-sqlite-snapshot",
     },
     rest: { version: API_VERSION, compatibility: "additive-within-v1", mutation: "none" },
-    mcp: { compatibility: "tool-names-and-required-fields-stable-within-1.x", mutation: "none" },
+    mcp: { compatibility: "tool-names-and-required-fields-stable-within-1.x", mutation: "explicit-investigation-state-and-tool-observation-only", database_mutation: "durable-investigation-ledger-or-build-bound-tool-observation", local_process: "explicit-allowlisted-or-project-local-tool-only" },
     cli: { compatibility: "commands-and-existing-option-semantics-stable-within-1.x", commands: PUBLIC_COMMANDS },
     deprecation: { minimum_notice: "one-minor-release", removal: "next-major-only" },
   };

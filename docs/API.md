@@ -1,6 +1,6 @@
 # HTTP API
 
-The daemon exposes read-only JSON. Ingestion and capture mutation remain local CLI operations.
+The daemon exposes read-only JSON. Ingestion and capture mutation remain local CLI operations. MCP investigation-ledger tools and optional local-tool recording write through separate local database connections; no HTTP mutation route exists. Those MCP tools carry non-read-only annotations.
 
 Base URL: `http://127.0.0.1:7878`
 
@@ -47,6 +47,16 @@ An entity selector contains `entity_id`, `stable_key`, or `address`; add `build_
 | `/v1/gaps/worklist` | `build_id`, `capture_id`, `status`, `limit` | Persistent prioritized gaps |
 | `/v1/coverage` | `build_id` | Static, evidence, and runtime coverage |
 | `/v1/guide/dump` | `objective` | Vendor-neutral collection checklist |
+| `/v1/playbooks` | none | Deterministic investigation playbooks |
+| `/v1/investigations` | build/status filters | Durable investigation inventory |
+| `/v1/investigations/detail` | `investigation_id` | Checklist, links, attempts, usage, blockers |
+| `/v1/investigations/report` | `build_id`, `stale_days` | Progress and stale-work report |
+| `/v1/failed-attempts` | investigation/build/subject filters | Reusable failed-method memory |
+| `/v1/evidence/challenge` | investigation or build/subject | Deterministic challenge report |
+| `/v1/discover` | `q`, `build_id`, `kinds`, `limit` | Discovery-only cross-record retrieval |
+| `/v1/discovery/context` | discovery parameters, `max_chars` | Bounded retrieval context with exact follow-ups |
+
+`/dashboard` serves a loopback-only, read-only HTML view. It is not part of the JSON API and is refused on non-local binds. Local tool execution is MCP/CLI only and is intentionally absent from the daemon.
 
 ## Capture analysis
 

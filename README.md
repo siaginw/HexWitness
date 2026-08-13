@@ -135,7 +135,7 @@ Where is this UUID used, which class owns it, and did its field offset change
 between builds?
 ```
 
-HexWitness gives agents first-class queries for builds, functions, classes, UUIDs, types, fields, vtables, calls, xrefs, paths, dataflow, captures, contradictions, coverage, and evidence gaps. Three MCP prompts package complete investigation, runtime comparison, and live-finding promotion workflows.
+HexWitness gives agents first-class queries for builds, functions, classes, UUIDs, types, fields, vtables, calls, xrefs, paths, dataflow, captures, contradictions, coverage, evidence gaps, durable investigations, failed attempts, challenges, and discovery-only retrieval. Four MCP prompts package investigation, runtime comparison, live-finding promotion, and adversarial evidence-review workflows.
 
 ## One investigation loop
 
@@ -146,6 +146,10 @@ HexWitness gives agents first-class queries for builds, functions, classes, UUID
 5. **Challenge.** Surface provenance, confidence, and contradictory claims.
 6. **Escalate.** If proof ends, name the smallest missing live observation.
 7. **Promote.** Export that bounded result so the next investigation starts smarter.
+
+For longer work, deterministic playbooks seed persistent checklists and operation budgets. Failed methods stay searchable. An evidence challenge surfaces opposition, unsupported claims, and open gaps without allowing agent consensus to inflate confidence.
+
+Agents can also run allowlisted local RE utilities through one explicit MCP tool: argv-only, cwd-rooted, timed, output-capped, and receipt-producing. It is not an OS sandbox. Tool output remains an observation until promoted through the evidence model. No environment enable switch or separate model-provider key is required. See [Investigation workbench](docs/INVESTIGATION-WORKBENCH.md).
 
 The database remembers evidence. A separate privacy-safe activity store remembers operation hashes, timing, status, and counts—never prompts, arguments, or returned evidence.
 
@@ -188,7 +192,7 @@ HexWitness does not ship a weaker disassembler inside the project. Viewer MCPs p
 
 | Interface | Best use |
 |---|---|
-| MCP | Agent-led investigations with read-only tool annotations and tailored skills |
+| MCP | Agent-led investigations, read-only evidence tools, and one explicitly open-world local-tool runner |
 | CLI | Import, capture lifecycle, automation, recovery, and direct queries |
 | REST | Local read-only integration with a published route manifest |
 
@@ -212,7 +216,7 @@ Conflicting claims remain visible. Unknown behavior becomes a worklist, not a fa
 raw private material  →  normalized project evidence  →  synthetic public fixtures
 ```
 
-- Daemon binds to localhost and serves GET-only queries.
+- Daemon binds to localhost and serves GET-only queries, including a loopback-only dashboard.
 - Non-local binding requires an API token and still needs trusted TLS transport.
 - Executable bytes and decompiler text are not exported by default.
 - Capture normalization recursively removes common secret and payload fields.

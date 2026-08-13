@@ -41,7 +41,7 @@ The automated suite checks these boundaries together:
 3. SQLite preserves canonical 64-bit addresses and exact build scope.
 4. CLI creates demo state and diagnoses it.
 5. Unified `hexwitness agent` starts a missing local daemon.
-6. MCP discovers every evidence tool with read-only, non-destructive, idempotent annotations.
+6. MCP evidence tools advertise read-only annotations; investigation-ledger mutations advertise closed-world write effects; the isolated local executor advertises its open-world and non-idempotent boundary truthfully.
 7. MCP queries the same database created by the installed CLI.
 8. Setup installs client-tailored guidance and preserves existing configuration through backups.
 9. Capture packaging detects the standard artifact set, rejects missing or empty baseline data, normalizes secrets recursively, seals hashes, verifies integrity, and imports.
@@ -51,6 +51,8 @@ The automated suite checks these boundaries together:
 13. Older supported databases migrate without evidence loss; newer schemas fail closed.
 14. Consistent snapshots pass SQLite integrity verification and never overwrite an existing backup.
 15. Concurrent mixed daemon queries complete under a configurable sustained-load gate.
+16. Durable investigations cannot complete without required checks, a proof link, and closed linked gaps.
+17. Failed attempts, evidence challenges, discovery-only retrieval, local execution receipts, and the loopback dashboard have focused tests.
 
 ## Evidence correctness checks
 
@@ -68,7 +70,7 @@ The automated suite checks these boundaries together:
 
 The daemon is query-only over HTTP. It binds to localhost by default. A non-local bind requires an API token, but operators must still supply trusted TLS transport. Import and capture mutation stay in local CLI commands.
 
-MCP annotations are safety hints, not an authorization system. HexWitness also enforces read-only behavior in the daemon itself.
+MCP annotations are safety hints, not an authorization system. HexWitness enforces read-only daemon behavior independently. The local-tool MCP capability intentionally creates an unsandboxed local process and is not read-only; argv, allowlist, cwd-root, timeout, output, credential-argument, and receipt constraints are enforced in runtime code.
 
 See [Security](../.github/SECURITY.md) and [Privacy](PRIVACY.md).
 

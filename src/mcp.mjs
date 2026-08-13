@@ -5,6 +5,10 @@ import { fileURLToPath } from "node:url";
 import { DaemonClient } from "./mcp-client.mjs";
 import { VERSION } from "./constants.mjs";
 import { NATIVE_SKILL_CLIENTS, readAgentGuidance } from "./agent-guidance.mjs";
+import { localToolStatus, recordToolObservation, runLocalTool } from "./executor.mjs";
+import { loadConfig } from "./config.mjs";
+import { openEvidenceDb } from "./db.mjs";
+import { addInvestigationItem, createInvestigation, recordFailedAttempt, recordInvestigationUsage, setInvestigationStatus, updateInvestigationItem } from "./investigations.mjs";
 
 function content(value) {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
@@ -29,6 +33,11 @@ export function createMcpServer(client = new DaemonClient()) {
     ...config,
     annotations: readOnlyAnnotations,
   }, handler);
+  const mutationAnnotations = Object.freeze({ readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false });
+  const withWritableDb = (callback) => {
+    const db = openEvidenceDb(loadConfig().evidenceDb);
+    try { return callback(db); } finally { db.close(); }
+  };
 
   server.registerResource("hexwitness-agent-guide", "hexwitness://agent-guide", {
     title: `HexWitness workflow for ${agentClient}`,
@@ -280,11 +289,126 @@ export function createMcpServer(client = new DaemonClient()) {
     inputSchema: { limit: z.number().int().min(1).max(100).optional() },
   }, async (args) => content(await client.get("/v1/activity", args)));
 
+  registerReadOnlyTool("hexwitness_adapter_diagnostics", {
+    title: "Diagnose analysis adapters",
+    description: "Report bundled adapter assets, locally visible runtimes, external-host requirements, capabilities, and exact missing setup without executing a target.",
+    inputSchema: { adapter_id: z.string().optional() },
+  }, async ({ adapter_id }) => content(await client.get("/v1/adapters/diagnostics", { id: adapter_id })));
+
+  registerReadOnlyTool("hexwitness_playbooks", {
+    title: "List evidence playbooks",
+    description: "List deterministic binary, firmware, network, protocol, and runtime investigation playbooks. Playbooks define evidence gates, not LLM personas.",
+    inputSchema: { playbook_id: z.string().optional() },
+  }, async ({ playbook_id }) => content(await client.get(playbook_id ? "/v1/playbooks/detail" : "/v1/playbooks", playbook_id ? { id: playbook_id } : {})));
+
+  registerReadOnlyTool("hexwitness_investigations", {
+    title: "List durable investigations",
+    description: "List persistent build-bound investigations with checklist progress, evidence links, gaps, stale state, and operation budget status.",
+    inputSchema: { build_id: z.string().optional(), status: z.enum(["planned", "active", "blocked", "complete", "abandoned"]).optional(), playbook_id: z.string().optional(), stale_days: z.number().int().min(1).max(365).optional(), limit: z.number().int().min(1).max(500).optional() },
+  }, async (args) => content(await client.get("/v1/investigations", args)));
+
+  registerReadOnlyTool("hexwitness_investigation_detail", {
+    title: "Read a durable investigation",
+    description: "Return one investigation, ordered checklist and reference items, failed attempts, usage ledger, progress, completion blockers, and budget state.",
+    inputSchema: { investigation_id: z.string() },
+  }, async (args) => content(await client.get("/v1/investigations/detail", args)));
+
+  registerReadOnlyTool("hexwitness_investigation_report", {
+    title: "Report investigation progress",
+    description: "Summarize active, blocked, stalled, complete, and completion-ready investigations for one build or the full local evidence database.",
+    inputSchema: { build_id: z.string().optional(), stale_days: z.number().int().min(1).max(365).optional() },
+  }, async (args) => content(await client.get("/v1/investigations/report", args)));
+
+  server.registerTool("hexwitness_investigation_create", {
+    title: "Create a durable investigation",
+    description: "Create one exact-build investigation, optionally seeded by a deterministic playbook and explicit agent-operation budget.",
+    inputSchema: { build_id: z.string(), title: z.string().min(1).max(500), question: z.string().max(4000).optional(), playbook_id: z.enum(["binary", "firmware", "network", "protocol", "runtime"]).optional(), priority: z.number().int().min(0).max(4).optional(), operation_budget: z.number().int().min(1).optional() },
+    annotations: mutationAnnotations,
+  }, async ({ build_id, title, question, playbook_id, priority, operation_budget }) => content(withWritableDb((db) => createInvestigation(db, { buildId: build_id, title, question, playbookId: playbook_id, priority, operationBudget: operation_budget }))));
+
+  server.registerTool("hexwitness_investigation_add_item", {
+    title: "Link investigation work or proof",
+    description: "Add a checklist, decision, note, or exact evidence/entity/claim/gap/capture reference to a durable investigation.",
+    inputSchema: { investigation_id: z.string(), kind: z.enum(["objective", "check", "decision", "note", "entity", "evidence", "claim", "gap", "capture", "attempt"]), title: z.string().min(1).max(1000), ref_id: z.string().optional(), required: z.boolean().optional(), status: z.enum(["pending", "in_progress", "done", "blocked", "skipped"]).optional(), details: z.record(z.unknown()).optional() },
+    annotations: mutationAnnotations,
+  }, async ({ investigation_id, kind, title, ref_id, required, status, details }) => content(withWritableDb((db) => addInvestigationItem(db, investigation_id, { kind, title, refId: ref_id, required, status, details }))));
+
+  server.registerTool("hexwitness_investigation_update_item", {
+    title: "Update investigation checklist state",
+    description: "Set one investigation item to pending, in progress, done, blocked, or skipped. Required skipped items still block completion.",
+    inputSchema: { investigation_id: z.string(), item_id: z.string(), status: z.enum(["pending", "in_progress", "done", "blocked", "skipped"]) },
+    annotations: mutationAnnotations,
+  }, async ({ investigation_id, item_id, status }) => content(withWritableDb((db) => updateInvestigationItem(db, investigation_id, item_id, { status }))));
+
+  server.registerTool("hexwitness_investigation_set_status", {
+    title: "Set investigation lifecycle state",
+    description: "Set planned, active, blocked, complete, or abandoned. Completion fails unless required checks, proof links, and linked gaps satisfy the gate.",
+    inputSchema: { investigation_id: z.string(), status: z.enum(["planned", "active", "blocked", "complete", "abandoned"]) },
+    annotations: mutationAnnotations,
+  }, async ({ investigation_id, status }) => content(withWritableDb((db) => setInvestigationStatus(db, investigation_id, status))));
+
+  server.registerTool("hexwitness_investigation_record_usage", {
+    title: "Record investigation operation usage",
+    description: "Charge explicit agent-operation units against an investigation budget. Units are operator-defined operations, not provider tokens or money.",
+    inputSchema: { investigation_id: z.string(), operation: z.string().min(1).max(500), units: z.number().int().min(1).optional(), note: z.string().max(2000).optional() },
+    annotations: mutationAnnotations,
+  }, async ({ investigation_id, operation, units, note }) => content(withWritableDb((db) => recordInvestigationUsage(db, investigation_id, { operation, units, note, source: "mcp" }))));
+
+  registerReadOnlyTool("hexwitness_failed_attempts", {
+    title: "Reuse failed-attempt memory",
+    description: "List build-bound failed experiments with expected and actual outcomes, lessons, tools, versions, and linked evidence so agents do not repeat disproven work.",
+    inputSchema: { investigation_id: z.string().optional(), build_id: z.string().optional(), subject: z.string().optional(), limit: z.number().int().min(1).max(500).optional() },
+  }, async (args) => content(await client.get("/v1/failed-attempts", args)));
+
+  server.registerTool("hexwitness_failed_attempt_record", {
+    title: "Record a disproven or failed method",
+    description: "Persist one exact-build failed attempt with expected/actual outcome, lesson, tool identity, and optional evidence links so future agents do not repeat it blindly.",
+    inputSchema: { investigation_id: z.string().optional(), build_id: z.string().optional(), subject: z.string().min(1).max(1000), method: z.string().min(1).max(4000), expected: z.string().min(1).max(4000), actual: z.string().min(1).max(4000), lesson: z.string().min(1).max(4000), tool: z.string().max(500).optional(), tool_version: z.string().max(500).optional(), evidence_ids: z.array(z.string()).max(100).optional(), metadata: z.record(z.unknown()).optional() },
+    annotations: mutationAnnotations,
+  }, async ({ investigation_id, build_id, subject, method, expected, actual, lesson, tool, tool_version, evidence_ids, metadata }) => content(withWritableDb((db) => recordFailedAttempt(db, { investigationId: investigation_id, buildId: build_id, subject, method, expected, actual, lesson, tool, toolVersion: tool_version, evidenceIds: evidence_ids, metadata }))));
+
+  registerReadOnlyTool("hexwitness_evidence_challenge", {
+    title: "Challenge an evidence claim set",
+    description: "Deterministically gather supporting and opposing evidence, unsupported claims, contradictions, failed attempts, open gaps, and next actions. Never changes confidence or promotes a fact.",
+    inputSchema: { investigation_id: z.string().optional(), build_id: z.string().optional(), subject: z.string().optional() },
+  }, async (args) => content(await client.get("/v1/evidence/challenge", args)));
+
+  registerReadOnlyTool("hexwitness_discover", {
+    title: "Discover retained evidence",
+    description: "Search the cross-record lexical retrieval index. Results are discovery-only candidates and include exact authoritative follow-up tools.",
+    inputSchema: { query: z.string().min(2), build_id: z.string().optional(), kinds: z.array(z.enum(["entity", "evidence", "claim", "capture_event", "investigation", "failed_attempt"])).optional(), limit: z.number().int().min(1).max(250).optional() },
+  }, async ({ query, build_id, kinds, limit }) => content(await client.get("/v1/discover", { q: query, build_id, kinds: kinds?.join(","), limit })));
+
+  registerReadOnlyTool("hexwitness_discovery_context", {
+    title: "Build discovery context",
+    description: "Retrieve a bounded discovery-only context with provenance and exact-query follow-ups. It never promotes retrieved text into evidence or claims.",
+    inputSchema: { query: z.string().min(2), build_id: z.string().optional(), kinds: z.array(z.string()).optional(), limit: z.number().int().min(1).max(250).optional(), max_chars: z.number().int().min(1000).max(50000).optional() },
+  }, async ({ query, build_id, kinds, limit, max_chars }) => content(await client.get("/v1/discovery/context", { q: query, build_id, kinds: kinds?.join(","), limit, max_chars })));
+
+  registerReadOnlyTool("hexwitness_local_tool_status", {
+    title: "Inspect local analysis-tool execution policy",
+    description: "Resolve agent-callable local reverse-engineering tools and show argv-only, workspace, timeout, output, and observation-authority policy.",
+    inputSchema: { root: z.string().optional() },
+  }, async ({ root }) => content(localToolStatus({ root: root ?? process.cwd() })));
+
+  server.registerTool("hexwitness_run_local_tool", {
+    title: "Run one bounded local analysis tool",
+    description: "Run one allowlisted or project-local tool without a shell, with a root-bounded working directory and timeout/output caps. The process is not OS-sandboxed. Returns a reproducible receipt and observation-only output; optional recording creates build-bound tool-observation evidence, never a claim.",
+    inputSchema: { executable: z.string().min(1), args: z.array(z.string()).max(256).optional(), root: z.string().optional(), cwd: z.string().optional(), timeout_ms: z.number().int().min(100).max(600000).optional(), record: z.boolean().optional(), build_id: z.string().optional(), summary: z.string().max(2000).optional() },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+  }, async ({ executable, args, root, cwd, timeout_ms, record, build_id, summary }) => {
+    const receipt = await runLocalTool({ executable, args, cwd, timeoutMs: timeout_ms }, { root: root ?? process.cwd() });
+    if (!record) return content({ receipt, observation: null });
+    if (!build_id) throw new Error("build_id is required when record=true");
+    const db = openEvidenceDb(loadConfig().evidenceDb);
+    try { return content({ receipt, observation: recordToolObservation(db, build_id, receipt, summary) }); } finally { db.close(); }
+  });
+
   server.registerPrompt("hexwitness_start_investigation", {
     title: "Start an evidence-first investigation",
     description: "Let the agent drive a complete memory-first investigation and escalate only proven gaps to a live viewer.",
     argsSchema: { question: z.string(), build_id: z.string().optional(), preferred_viewer: z.enum(["auto", "binary_ninja", "ida", "none"]).optional() },
-  }, ({ question, build_id, preferred_viewer }) => ({ messages: [{ role: "user", content: { type: "text", text: `Investigate: ${question}\nBuild: ${build_id ?? "select the exact matching build first"}\nPreferred live viewer: ${preferred_viewer ?? "auto"}\n\nDrive the investigation without asking me to translate it into commands. Start with health, memory status, and builds. Resolve the target with search/query, read its dossier with explain, then use only the smallest focused graph, object-model, or capture queries. Inspect evidence and contradictions before drawing a conclusion. If retained evidence is insufficient, use gap_report and dump_guide, choose the smallest read-only live Binary Ninja or IDA query that closes the gap, and state the exact bounded export needed to promote that result into HexWitness. Do not mutate the live analysis database without explicit authorization. Report proven facts, strong inferences, contradictions, unknowns, and the next evidence action separately.` } }] }));
+  }, ({ question, build_id, preferred_viewer }) => ({ messages: [{ role: "user", content: { type: "text", text: `Investigate: ${question}\nBuild: ${build_id ?? "select the exact matching build first"}\nPreferred live viewer: ${preferred_viewer ?? "auto"}\n\nDrive the investigation without asking me to translate it into commands. Start with health, memory status, and builds. For multi-step work, resume a matching durable investigation or create one with the closest playbook, mark it active, inspect failed attempts, and charge explicit operation units as work proceeds. Use discovery only to find candidates, then resolve the exact source with search/query and read its dossier with explain. Use only the smallest focused graph, object-model, or capture queries. Run evidence_challenge before completion. If retained evidence is insufficient, use gap_report and dump_guide, choose the smallest read-only live Binary Ninja or IDA query that closes the gap, and promote only a bounded build-scoped result. Do not mutate the live analysis database without explicit authorization. Complete the investigation only when its proof gates pass. Report proven facts, strong inferences, contradictions, unknowns, and the next evidence action separately.` } }] }));
 
   server.registerPrompt("hexwitness_compare_runtime_behavior", {
     title: "Compare two runtime behaviors",
@@ -297,6 +421,12 @@ export function createMcpServer(client = new DaemonClient()) {
     description: "Turn a transient Binary Ninja or IDA result into a minimal, build-scoped HexWitness evidence handoff.",
     argsSchema: { build_id: z.string(), viewer: z.enum(["binary_ninja", "ida", "other"]), finding: z.string(), objective: z.enum(["identity", "control_flow", "data_flow", "object_model", "protocol", "runtime", "behavior"]).optional() },
   }, ({ build_id, viewer, finding, objective }) => ({ messages: [{ role: "user", content: { type: "text", text: `Prepare a bounded promotion for this live finding.\nBuild: ${build_id}\nViewer: ${viewer}\nObjective: ${objective ?? "behavior"}\nFinding: ${finding}\n\nFirst query HexWitness to ensure the finding is not already retained. Use gap_report and dump_guide to identify the minimum records required. Return: the exact function/type/address scope, required calls/xrefs/fields/slices, provenance fields, whether decompiler text is necessary, the appropriate HexWitness exporter, and the ingest verification query. Do not request the whole database or proprietary binary bytes. Treat the finding as provisional until the exported JSONL is ingested and re-queried.` } }] }));
+
+  server.registerPrompt("hexwitness_challenge_investigation", {
+    title: "Challenge a durable investigation",
+    description: "Audit one persistent investigation without allowing agent consensus to alter factual confidence.",
+    argsSchema: { investigation_id: z.string() },
+  }, ({ investigation_id }) => ({ messages: [{ role: "user", content: { type: "text", text: `Challenge durable investigation ${investigation_id}. Read investigation_detail, failed_attempts, and evidence_challenge. Separate supporting evidence, opposing evidence, contradictions, unsupported claims, open gaps, and repeated-failure risks. Do not alter confidence because agents agree. Recommend the smallest evidence action that changes the factual record.` } }] }));
 
   return server;
 }

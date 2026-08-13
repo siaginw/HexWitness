@@ -44,6 +44,17 @@ export function openEvidenceDb(path, { readOnly = false } = {}) {
           SELECT event_id,capture_id,source,kind,direction,name,summary,fields_json FROM events;`);
         db.prepare("INSERT OR REPLACE INTO meta(key,value) VALUES(?,?)").run("fts_backfill_v1", "complete");
       }
+      const discoveryReady = db.prepare("SELECT value FROM meta WHERE key='discovery_backfill_v1'").get()?.value === "complete";
+      if (!discoveryReady) {
+        db.exec(`DELETE FROM discovery_fts;
+          INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) SELECT entity_id,build_id,'entity',COALESCE(name,stable_key),COALESCE(signature,'')||' '||COALESCE(decompiler,'')||' '||stable_key,metadata_json FROM entities;
+          INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) SELECT evidence_id,build_id,'evidence',summary,source||' '||source_ref||' '||summary,metadata_json FROM evidence;
+          INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) SELECT claim_id,build_id,'claim',subject||' '||predicate,subject||' '||predicate||' '||object_json,json_object('subject',subject,'status',status) FROM claims;
+          INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) SELECT e.event_id,c.build_id,'capture_event',e.name,e.source||' '||e.kind||' '||e.name||' '||COALESCE(e.summary,'')||' '||e.fields_json,json_object('capture_id',e.capture_id,'ordinal',e.ordinal) FROM events e JOIN captures c ON c.capture_id=e.capture_id;
+          INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) SELECT investigation_id,build_id,'investigation',title,question||' '||title,json_object('status',status,'playbook_id',playbook_id) FROM investigations;
+          INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) SELECT attempt_id,build_id,'failed_attempt',subject||' — '||method,subject||' '||method||' '||expected_result||' '||actual_result||' '||lesson,json_object('investigation_id',investigation_id,'tool',tool,'tool_version',tool_version) FROM failed_attempts;`);
+        db.prepare("INSERT OR REPLACE INTO meta(key,value) VALUES(?,?)").run("discovery_backfill_v1", "complete");
+      }
       db.prepare("INSERT OR REPLACE INTO meta(key,value) VALUES(?,?)").run("schema_version", String(SCHEMA_VERSION));
       db.exec(`PRAGMA user_version=${SCHEMA_VERSION};`);
       db.prepare("INSERT OR IGNORE INTO meta(key,value) VALUES(?,?)").run("created_utc", nowUtc());
