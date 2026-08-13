@@ -144,6 +144,10 @@ export function stats(db) {
     relationships: count("relationships"),
     analysis_slices: count("analysis_slices"),
     gaps: count("gaps"),
+    investigations: count("investigations"),
+    investigation_items: count("investigation_items"),
+    failed_attempts: count("failed_attempts"),
+    investigation_usage: count("investigation_usage"),
   };
 }
 
@@ -163,6 +167,7 @@ export function memoryStatus(db) {
       database_bytes: pageCount * pageSize,
       latest_import: publicRow(db.prepare("SELECT import_id,source_sha256,finished_utc,status,accepted_count,rejected_count FROM import_runs ORDER BY started_utc DESC LIMIT 1").get()),
       latest_capture: publicRow(db.prepare("SELECT capture_id,build_id,scenario,finished_utc,status FROM captures ORDER BY COALESCE(finished_utc,started_utc) DESC LIMIT 1").get()),
+      latest_investigation: publicRow(db.prepare("SELECT investigation_id,build_id,title,status,updated_utc FROM investigations ORDER BY updated_utc DESC LIMIT 1").get()),
     },
     reuse_sequence: ["select exact build", "query HexWitness", "use retained evidence when sufficient", "call live viewer only for a gap", "export and ingest the new finding"],
   };

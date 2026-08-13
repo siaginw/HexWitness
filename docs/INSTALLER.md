@@ -34,6 +34,8 @@ Native skills load on demand, so they do not consume every conversation's contex
 
 Every shipped pack also enforces the distribution boundary: use MCP for investigations, use the unified `hexwitness` command for operational work, resolve adapters through `hexwitness adapters`, and never rely on package-internal paths.
 
+Skills also teach the selected agent to call adapter diagnostics, use discovery only as candidate retrieval, read failed-attempt memory, challenge evidence before completion, and invoke bounded local tools directly when useful. Model-provider authentication remains owned by the host client. HexWitness never asks an agent to copy provider API keys into MCP arguments, local-tool arguments, or evidence.
+
 ## What the wizard does
 
 1. asks which AI clients should receive HexWitness;

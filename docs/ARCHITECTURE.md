@@ -11,6 +11,9 @@ flowchart LR
   D --> H["REST clients"]
   D --> M["MCP stdio adapter"]
   M --> G["Coding agents"]
+  G -->|"explicit local-tool call"| T["Allowlisted RE utilities"]
+  T -->|"observation receipt"| G
+  D --> U["Loopback read-only dashboard"]
   D --> L["Privacy-preserving activity DB"]
 ```
 
@@ -26,9 +29,9 @@ Viewer exporters remain separate adapter assets because Binary Ninja, IDA, and G
 - **Distribution** exposes one command while preserving replaceable adapters.
 - **JSONL** is the stable interchange boundary.
 - **Capture packs** keep baseline artifacts, markers, hashes, quality gates, and normalized evidence together.
-- **Importer** is the only standard component that mutates evidence state.
+- **Importer** owns structured evidence ingestion. The only additional mutation path is explicit build-bound recording of a local-tool receipt as observation evidence.
 - **Daemon** exposes read-only queries.
-- **MCP** mirrors daemon semantics. It never bypasses provenance rules.
+- **MCP** mirrors daemon evidence queries, exposes truthful closed-world investigation-ledger mutations, and provides one clearly annotated local-process capability. Tool receipts remain observations and never bypass provenance rules.
 - **Activity DB** is separate from evidence. It can be deleted without affecting analysis.
 
 ## Memory model
@@ -41,9 +44,9 @@ Live viewer calls are not silently cached. Promotion is explicit—export a boun
 
 Reverse-engineering evidence is local, relational, highly queryable, and usually read-heavy. SQLite provides transactions, indexes, portable single-file storage, and simple backup without operating a separate database service. The interchange format prevents lock-in: rebuild the index from JSONL exports at any time.
 
-Entity and normalized-event text use FTS5 indexes with ordinary indexed-query fallback. The one-time schema migration backfills existing databases; later idempotent imports maintain both indexes through triggers.
+Entity and normalized-event text use FTS5 indexes. A cross-record discovery index covers entities, evidence, claims, capture events, investigations, and failed attempts. Discovery results carry no factual authority; they point agents to exact records. One-time migration backfills existing databases; triggers maintain indexes.
 
-Schema changes are versioned. HexWitness 1.0 migrates schema 1 to schema 2 only through a writable open, retains imported evidence, and rejects future schema versions without mutation. Read-only services refuse a database that still needs migration, producing an actionable error instead of querying a partial shape. `hexwitness backup OUTPUT` creates and integrity-checks a consistent SQLite snapshot before an upgrade.
+Schema changes are versioned. Current schema 3 adds durable investigations, failed-attempt memory, operation usage, and cross-record discovery. Migrations require a writable open, retain imported evidence, and reject future schema versions without mutation. Read-only services refuse a database that still needs migration. `hexwitness backup OUTPUT` creates and integrity-checks a consistent SQLite snapshot before an upgrade.
 
 ## Stable identity
 

@@ -87,6 +87,6 @@ HexWitness adds discipline. Small investigations do not always need it.
 
 ## Claims you can verify
 
-The public repository ships synthetic tests for importer idempotency, address safety, graph queries, class and UUID lookup, capture sealing, secret redaction, runtime comparison, contradiction handling, daemon read-only behavior, MCP discovery, setup installation, package contents, and the installed CLI → DB → daemon → MCP path.
+The public repository ships synthetic tests for importer idempotency, address safety, graph queries, class and UUID lookup, capture sealing, secret redaction, runtime comparison, contradiction handling, durable investigations, failed-attempt memory, evidence challenges, discovery-only retrieval, local execution receipts, daemon/dashboard read-only behavior, MCP discovery, setup installation, package contents, and the installed CLI → DB → daemon → MCP path.
 
 See [Quality](QUALITY.md) for exact gates and [Capability matrix](CAPABILITY-MATRIX.md) for intentional boundaries.

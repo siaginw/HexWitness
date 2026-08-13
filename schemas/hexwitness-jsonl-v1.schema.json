@@ -8,7 +8,7 @@
   "properties": {
     "format": { "const": "hexwitness-jsonl-v1" },
     "record": {
-      "enum": ["build", "artifact", "entity", "edge", "evidence", "claim", "capture", "event", "capture_artifact", "marker", "relationship", "slice", "gap"]
+      "enum": ["build", "artifact", "entity", "edge", "evidence", "claim", "capture", "event", "capture_artifact", "marker", "relationship", "slice", "gap", "investigation", "investigation_item", "failed_attempt", "investigation_usage"]
     },
     "build_id": { "type": "string", "minLength": 1 },
     "metadata": { "type": "object" }
@@ -187,6 +187,45 @@
         "capture_id": { "type": "string" }, "subject": { "type": "string" }, "objective": { "type": "string" },
         "status": { "type": "string" }, "priority": { "type": "integer", "minimum": 0, "maximum": 4 },
         "missing": { "type": "array" }, "recommendation": { "type": "string" }
+      } }
+    },
+    {
+      "if": { "properties": { "record": { "const": "investigation" } }, "required": ["record"] },
+      "then": { "required": ["build_id", "investigation_id", "title"], "properties": {
+        "investigation_id": { "type": "string", "minLength": 1 }, "title": { "type": "string", "minLength": 1 },
+        "question": { "type": "string" }, "status": { "enum": ["planned", "active", "blocked", "complete", "abandoned"] },
+        "priority": { "type": "integer", "minimum": 0, "maximum": 4 }, "playbook_id": { "type": "string" },
+        "operation_budget": { "type": "integer", "minimum": 1 }, "created_utc": { "$ref": "#/$defs/timestamp" },
+        "updated_utc": { "$ref": "#/$defs/timestamp" }, "completed_utc": { "$ref": "#/$defs/timestamp" }
+      } }
+    },
+    {
+      "if": { "properties": { "record": { "const": "investigation_item" } }, "required": ["record"] },
+      "then": { "required": ["build_id", "investigation_id", "kind", "title"], "properties": {
+        "item_id": { "type": "string" }, "investigation_id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["objective", "check", "decision", "note", "entity", "evidence", "claim", "gap", "capture", "attempt"] },
+        "ref_id": { "type": "string" }, "title": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["pending", "in_progress", "done", "blocked", "skipped"] },
+        "ordinal": { "type": "integer", "minimum": 1 }, "required": { "type": "boolean" }, "details": { "type": "object" },
+        "created_utc": { "$ref": "#/$defs/timestamp" }, "updated_utc": { "$ref": "#/$defs/timestamp" }
+      } }
+    },
+    {
+      "if": { "properties": { "record": { "const": "failed_attempt" } }, "required": ["record"] },
+      "then": { "required": ["build_id", "subject", "method", "expected", "actual", "lesson"], "properties": {
+        "attempt_id": { "type": "string" }, "investigation_id": { "type": "string" }, "subject": { "type": "string", "minLength": 1 },
+        "method": { "type": "string", "minLength": 1 }, "expected": { "type": "string", "minLength": 1 },
+        "actual": { "type": "string", "minLength": 1 }, "lesson": { "type": "string", "minLength": 1 },
+        "tool": { "type": "string" }, "tool_version": { "type": "string" }, "observed_utc": { "$ref": "#/$defs/timestamp" },
+        "evidence_ids": { "type": "array", "items": { "type": "string" } }
+      } }
+    },
+    {
+      "if": { "properties": { "record": { "const": "investigation_usage" } }, "required": ["record"] },
+      "then": { "required": ["build_id", "investigation_id", "operation"], "properties": {
+        "usage_id": { "type": "string" }, "investigation_id": { "type": "string", "minLength": 1 },
+        "operation": { "type": "string", "minLength": 1 }, "units": { "type": "integer", "minimum": 1 },
+        "source": { "type": "string" }, "note": { "type": "string" }, "ts_utc": { "$ref": "#/$defs/timestamp" }
       } }
     }
   ],

@@ -23,15 +23,21 @@ HexWitness reproduces the reusable workflow of a mature reverse-engineering evid
 | Runtime graph | Correlation, request/response, marker/event, and object-observation relationships | Complete |
 | Capture analysis | List, detail, timeline, search, graph, family deltas, first divergence | Complete |
 | Coverage | Static depth, evidence classes, runtime captures, open gaps | Complete |
-| Agent API | Read-only REST daemon, route manifest, MCP tools, investigation/runtime-comparison/live-promotion prompts | Complete |
+| Agent API | Read-only REST daemon, route manifest, MCP evidence queries, investigation-ledger mutations, local tool runner, and workflow prompts | Complete |
 | Agent onboarding | One wizard configures MCP plus tailored native skills/guides for Codex, Claude Code, Cursor, VS Code, Claude Desktop, or generic clients | Complete |
 | Unified distribution | One `hexwitness` command, bundled runtime, no installed source/test internals, no runtime npm dependency tree | Complete |
 | Adapter discovery | Machine-readable `hexwitness adapters [ID]` catalog with installed paths and capabilities | Complete |
 | Stable 1.x contract | Machine-readable CLI/REST/MCP/interchange/database policy, migration, backup, deprecation rules | Complete |
 | Release provenance | Archive checksums and GitHub keyless build-provenance attestation | Complete on tagged releases |
 | Live viewer orchestration | Memory-first policy and integration recipes for official Binary Ninja MCP and Hex-Rays-endorsed IDA Pro MCP | Complete contract; viewer edition/version compatibility varies |
-| MCP safety metadata | Every query tool advertises read-only, non-destructive, idempotent, closed-world hints | Complete |
+| MCP safety metadata | Query tools advertise read-only hints; local execution advertises open-world/non-idempotent/destructive potential | Complete |
 | Durable memory | Evidence-first reuse, visible memory status, idempotent promotion, privacy-separated activity history | Complete |
+| Durable investigations | Build-bound playbooks, required checks, proof links, gap blockers, staleness, and explicit operation budgets | Complete |
+| Failed-attempt memory | Expected/actual results, lessons, tool versions, and evidence links | Complete |
+| Evidence challenge | Deterministic support/opposition/contradiction/gap audit with no automatic confidence mutation | Complete |
+| Retrieval augmentation | Local cross-record lexical discovery with exact authoritative follow-ups | Complete; discovery-only, not semantic proof |
+| Local tool execution | Agent-callable argv-only allowlist, cwd boundary, caps, hashes, and observation receipts | Complete; local process remains unsandboxed/open-world |
+| Human dashboard | Loopback-only read-only health, investigation, adapter, and discovery view | Complete |
 | Human API | CLI for ingest, query, object model, graph, capture lifecycle, compare, and doctor | Complete |
 | Static tool bridges | Binary Ninja, IDA, and Ghidra exporters through vendor-neutral JSONL | Complete contract; compatibility varies by vendor version |
 | Runtime tool bridge | Generic narrow Frida observer and arbitrary JSONL normalizer | Complete contract |
@@ -45,6 +51,7 @@ HexWitness reproduces the reusable workflow of a mature reverse-engineering evid
 - HexWitness never guesses target semantics. A target project supplies dictionaries, hooks, decoder schemas, and captures through adapters.
 - Vendor mutation—renaming, patching, commenting, saving a proprietary analysis database—stays in the vendor tool. HexWitness stores the resulting durable evidence.
 - A baseline collector can be a DLL, debugger plugin, proxy, ETW/eBPF consumer, or another authorized observer. It must emit the adapter contract; it is not part of the core.
+- No internal agent swarm. The MCP host remains the orchestrator; HexWitness supplies deterministic playbooks, budgets, evidence challenges, and memory.
 
 ## Acceptance definition
 

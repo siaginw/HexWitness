@@ -1,10 +1,10 @@
 {
   "schema": "hexwitness-adapter-catalog-v1",
   "adapters": [
-    { "id": "binary-ninja", "kind": "static-exporter", "path": "binary-ninja/export_hexwitness.py", "capabilities": ["functions", "strings", "imports", "calls", "references", "basic-blocks", "types", "fields", "optional-hlil"] },
-    { "id": "ida", "kind": "static-exporter", "path": "ida/export_hexwitness.py", "capabilities": ["functions", "strings", "imports", "calls", "references", "basic-blocks"] },
-    { "id": "ghidra", "kind": "static-exporter", "path": "ghidra/ExportHexWitness.py", "capabilities": ["functions", "calls", "basic-blocks", "types", "fields", "enums"] },
-    { "id": "frida-semantic", "kind": "semantic-observer", "path": "frida-jsonl/observer.js", "capabilities": ["narrow-interceptor-hooks", "operator-markers", "safe-arguments", "call-duration"] },
-    { "id": "frida-normalizer", "kind": "normalizer", "path": "frida-jsonl/normalize.mjs", "capabilities": ["runtime-events", "build-binding", "capture-binding"] }
+    { "id": "binary-ninja", "kind": "static-exporter", "path": "binary-ninja/export_hexwitness.py", "capabilities": ["functions", "strings", "imports", "calls", "references", "basic-blocks", "types", "fields", "optional-hlil"], "diagnostics": { "execution": "embedded", "host": "Binary Ninja", "executables_any": ["binaryninja", "binaryninja.exe"], "environment_any": ["BN_INSTALL_DIR"], "note": "Run inside Binary Ninja's supported Python environment; command discovery is only a convenience signal." } },
+    { "id": "ida", "kind": "static-exporter", "path": "ida/export_hexwitness.py", "capabilities": ["functions", "strings", "imports", "calls", "references", "basic-blocks"], "diagnostics": { "execution": "embedded", "host": "IDA Pro", "executables_any": ["ida", "ida64", "ida.exe", "ida64.exe"], "environment_any": ["IDA_INSTALL_DIR"], "note": "Run inside IDAPython; command discovery does not prove API or license compatibility." } },
+    { "id": "ghidra", "kind": "static-exporter", "path": "ghidra/ExportHexWitness.py", "capabilities": ["functions", "calls", "basic-blocks", "types", "fields", "enums"], "diagnostics": { "execution": "host", "host": "Ghidra", "executables_any": ["analyzeHeadless", "analyzeHeadless.bat"], "environment_any": ["GHIDRA_HOME"], "note": "Ghidra installation and supported scripting API are required." } },
+    { "id": "frida-semantic", "kind": "semantic-observer", "path": "frida-jsonl/observer.js", "capabilities": ["narrow-interceptor-hooks", "operator-markers", "safe-arguments", "call-duration"], "diagnostics": { "execution": "host", "host": "Frida", "executables_any": ["frida", "frida.exe"], "environment_any": [], "note": "Authorized target access and a matching Frida runtime remain operator responsibilities." } },
+    { "id": "frida-normalizer", "kind": "normalizer", "path": "frida-jsonl/normalize.mjs", "capabilities": ["runtime-events", "build-binding", "capture-binding"], "diagnostics": { "execution": "host", "host": "Node.js", "executables_any": ["node", "node.exe"], "environment_any": [], "note": "Bundled HexWitness runtime satisfies this requirement." } }
   ]
 }

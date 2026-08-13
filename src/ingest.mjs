@@ -7,6 +7,23 @@ import { openEvidenceDb, transaction } from "./db.mjs";
 import { validateRecord } from "./records.mjs";
 import { json, newId, nowUtc, stableId } from "./util.mjs";
 
+const INVESTIGATION_REFS = Object.freeze({ entity: ["entities", "entity_id"], evidence: ["evidence", "evidence_id"], claim: ["claims", "claim_id"], gap: ["gaps", "gap_id"], capture: ["captures", "capture_id"], attempt: ["failed_attempts", "attempt_id"] });
+
+function investigationBuild(db, investigationId) {
+  const row = db.prepare("SELECT build_id FROM investigations WHERE investigation_id=?").get(investigationId);
+  if (!row) throw new Error(`unknown investigation: ${investigationId}`);
+  return row.build_id;
+}
+
+function validateInvestigationRef(db, buildId, kind, refId) {
+  if (!refId) return;
+  const spec = INVESTIGATION_REFS[kind];
+  if (!spec) throw new Error(`investigation item kind ${kind} cannot carry ref_id`);
+  const row = db.prepare(`SELECT build_id FROM ${spec[0]} WHERE ${spec[1]}=?`).get(refId);
+  if (!row) throw new Error(`unknown ${kind} reference: ${refId}`);
+  if (row.build_id != null && row.build_id !== buildId) throw new Error(`${kind} reference belongs to a different build`);
+}
+
 function resolveEntityId(db, buildId, stableKey) {
   return db.prepare("SELECT entity_id FROM entities WHERE build_id=? AND stable_key=?").get(buildId, stableKey)?.entity_id ?? null;
 }
@@ -131,6 +148,45 @@ export function applyRecord(db, record) {
         id, record.build_id ?? null, record.capture_id ?? null, record.subject, record.objective, record.status ?? "open", record.priority,
         json(record.missing ?? []), record.recommendation ?? null, created, record.updated_utc ?? created, metadata,
       );
+      return;
+    }
+    case "investigation": {
+      db.prepare(`INSERT INTO investigations(investigation_id,build_id,title,question,status,priority,playbook_id,operation_budget,created_utc,updated_utc,completed_utc,metadata_json)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(investigation_id) DO UPDATE SET title=excluded.title,question=excluded.question,status=excluded.status,
+        priority=excluded.priority,playbook_id=excluded.playbook_id,operation_budget=excluded.operation_budget,updated_utc=excluded.updated_utc,
+        completed_utc=excluded.completed_utc,metadata_json=excluded.metadata_json`).run(record.investigation_id, record.build_id, record.title,
+        record.question ?? "", record.status ?? "planned", Math.max(0, Math.min(4, Number(record.priority ?? 2))), record.playbook_id ?? null,
+        record.operation_budget == null ? null : Number(record.operation_budget), record.created_utc ?? nowUtc(), record.updated_utc ?? nowUtc(), record.completed_utc ?? null, metadata);
+      return;
+    }
+    case "investigation_item": {
+      const buildId = investigationBuild(db, record.investigation_id);
+      validateInvestigationRef(db, buildId, record.kind, record.ref_id);
+      const id = record.item_id ?? stableId("item", record.investigation_id, record.kind, record.ref_id, record.title);
+      const ordinal = Number(record.ordinal ?? db.prepare("SELECT COALESCE(MAX(ordinal),0)+1 AS ordinal FROM investigation_items WHERE investigation_id=?").get(record.investigation_id).ordinal);
+      db.prepare(`INSERT INTO investigation_items(item_id,investigation_id,kind,ref_id,title,status,ordinal,required,details_json,created_utc,updated_utc)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(item_id) DO UPDATE SET ref_id=excluded.ref_id,title=excluded.title,status=excluded.status,
+        ordinal=excluded.ordinal,required=excluded.required,details_json=excluded.details_json,updated_utc=excluded.updated_utc`).run(id, record.investigation_id,
+        record.kind, record.ref_id ?? null, record.title, record.status ?? "pending", ordinal, record.required ? 1 : 0, json(record.details), record.created_utc ?? nowUtc(), record.updated_utc ?? nowUtc());
+      return;
+    }
+    case "failed_attempt": {
+      if (record.investigation_id && investigationBuild(db, record.investigation_id) !== record.build_id) throw new Error("failed attempt belongs to a different investigation build");
+      for (const evidenceId of record.evidence_ids ?? []) validateInvestigationRef(db, record.build_id, "evidence", evidenceId);
+      const id = record.attempt_id ?? stableId("attempt", record.build_id, record.investigation_id, record.subject, record.method, record.observed_utc);
+      db.prepare(`INSERT INTO failed_attempts(attempt_id,investigation_id,build_id,subject,method,expected_result,actual_result,lesson,tool,tool_version,observed_utc,metadata_json)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(attempt_id) DO UPDATE SET expected_result=excluded.expected_result,actual_result=excluded.actual_result,
+        lesson=excluded.lesson,tool=excluded.tool,tool_version=excluded.tool_version,metadata_json=excluded.metadata_json`).run(id, record.investigation_id ?? null,
+        record.build_id, record.subject, record.method, record.expected, record.actual, record.lesson, record.tool ?? null, record.tool_version ?? null,
+        record.observed_utc ?? nowUtc(), metadata);
+      const link = db.prepare("INSERT OR REPLACE INTO failed_attempt_evidence(attempt_id,evidence_id) VALUES(?,?)");
+      for (const evidenceId of record.evidence_ids ?? []) link.run(id, evidenceId);
+      return;
+    }
+    case "investigation_usage": {
+      const id = record.usage_id ?? stableId("usage", record.investigation_id, record.operation, record.ts_utc, record.note);
+      db.prepare(`INSERT OR REPLACE INTO investigation_usage(usage_id,investigation_id,operation,units,source,note,ts_utc)
+        VALUES(?,?,?,?,?,?,?)`).run(id, record.investigation_id, record.operation, Number(record.units ?? 1), record.source ?? "import", record.note ?? null, record.ts_utc ?? nowUtc());
       return;
     }
   }

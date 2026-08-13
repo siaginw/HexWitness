@@ -68,6 +68,20 @@ export function validateRecord(input) {
       required(record, "subject"); required(record, "objective");
       record.priority = Math.max(0, Math.min(4, Number(record.priority ?? 2)));
       break;
+    case "investigation":
+      required(record, "investigation_id"); required(record, "title");
+      if (record.operation_budget != null && (!Number.isInteger(Number(record.operation_budget)) || Number(record.operation_budget) < 1)) throw new Error("investigation: operation_budget must be a positive integer");
+      break;
+    case "investigation_item":
+      required(record, "investigation_id"); required(record, "kind"); required(record, "title");
+      break;
+    case "failed_attempt":
+      required(record, "subject"); required(record, "method"); required(record, "expected"); required(record, "actual"); required(record, "lesson");
+      break;
+    case "investigation_usage":
+      required(record, "investigation_id"); required(record, "operation");
+      if (!Number.isInteger(Number(record.units ?? 1)) || Number(record.units ?? 1) < 1) throw new Error("investigation_usage: units must be a positive integer");
+      break;
   }
   return record;
 }

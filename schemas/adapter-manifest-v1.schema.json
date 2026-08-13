@@ -15,6 +15,13 @@
       "role": { "type": "string" }, "format": { "enum": ["hexwitness-jsonl-v1", "jsonl", "json", "pcap", "pcapng", "video", "text"] }
     } },
     "capabilities": { "type": "array", "items": { "type": "string" } }
+    ,"diagnostics": { "type": "object", "properties": {
+      "execution": { "enum": ["host", "embedded"] },
+      "host": { "type": "string" },
+      "executables_any": { "type": "array", "items": { "type": "string" } },
+      "environment_any": { "type": "array", "items": { "type": "string" } },
+      "note": { "type": "string" }
+    }, "additionalProperties": false }
   },
   "additionalProperties": false
 }

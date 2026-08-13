@@ -28,6 +28,7 @@ test("daemon serves read-only evidence queries and records safe activity", async
     assert.equal(routes.routes.includes("/v1/class"), true);
     assert.equal(routes.routes.includes("/v1/captures/compare"), true);
     assert.equal(routes.routes.includes("/v1/contract"), true);
+    assert.equal(routes.routes.includes("/v1/discover"), true);
 
     const contract = await fetch(`http://127.0.0.1:${port}/v1/contract`).then((response) => response.json());
     assert.equal(contract.stability, "stable-1.x");
@@ -41,6 +42,15 @@ test("daemon serves read-only evidence queries and records safe activity", async
 
     const queried = await fetch(`http://127.0.0.1:${port}/v1/query?build_id=toy-v1&q=dispatch&kinds=function`).then((response) => response.json());
     assert.equal(queried[0].name, "dispatch_request");
+
+    const discovered = await fetch(`http://127.0.0.1:${port}/v1/discover?build_id=toy-v1&q=dispatch`).then((response) => response.json());
+    assert.equal(discovered.authority, "discovery-only");
+    assert.ok(discovered.results.length > 0);
+
+    const dashboard = await fetch(`http://127.0.0.1:${port}/dashboard`);
+    assert.equal(dashboard.status, 200);
+    assert.match(dashboard.headers.get("content-security-policy"), /default-src 'none'/);
+    assert.match(await dashboard.text(), /Local, read-only evidence observatory/);
 
     const writeAttempt = await fetch(`http://127.0.0.1:${port}/v1/ingest`, { method: "POST" });
     assert.equal(writeAttempt.status, 405);

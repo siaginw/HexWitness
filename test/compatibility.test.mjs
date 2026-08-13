@@ -8,7 +8,7 @@ import { isSupportedNode, publicContract } from "../src/contract.mjs";
 import { evidenceSchemaVersion, openEvidenceDb } from "../src/db.mjs";
 import { ingestFile } from "../src/ingest.mjs";
 import { stats } from "../src/query.mjs";
-import { downgradeFixtureToSchema1 } from "../scripts/schema-v1-fixture.mjs";
+import { downgradeFixtureToSchema1, downgradeFixtureToSchema2 } from "../scripts/schema-v1-fixture.mjs";
 import { VERSION } from "../src/constants.mjs";
 
 test("public 1.x contract is machine-readable and explicit", () => {
@@ -40,7 +40,7 @@ test("schema migration retains evidence and future schemas fail closed", async (
     db.close();
 
     db = openEvidenceDb(path);
-    assert.equal(evidenceSchemaVersion(db), 2);
+    assert.equal(evidenceSchemaVersion(db), 3);
     assert.equal(stats(db).entities, 4);
     assert.equal(db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE name IN ('capture_artifacts','entities_fts','events_fts')").get().count, 3);
     db.prepare("UPDATE meta SET value='999' WHERE key='schema_version'").run();
@@ -60,8 +60,26 @@ test("read-only access rejects a database that still needs migration", () => {
     db.close();
     assert.throws(
       () => openEvidenceDb(path, { readOnly: true }),
-      /requires migration to schema 2/,
+      /requires migration to schema 3/,
     );
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("schema 2 migrates to durable investigations without disturbing evidence", async () => {
+  const root = mkdtempSync(join(tmpdir(), "hexwitness-migration-v2-"));
+  const path = join(root, "evidence.db");
+  const fixture = resolve(import.meta.dirname, "../examples/toy-binary/evidence.jsonl");
+  try {
+    await ingestFile(path, fixture);
+    let db = openEvidenceDb(path);
+    downgradeFixtureToSchema2(db);
+    db.close();
+    assert.throws(() => openEvidenceDb(path, { readOnly: true }), /requires migration to schema 3/);
+    db = openEvidenceDb(path);
+    assert.equal(evidenceSchemaVersion(db), 3);
+    assert.equal(stats(db).entities, 4);
+    assert.equal(db.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('investigations','investigation_items','failed_attempts','investigation_usage')").get().count, 4);
+    db.close();
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

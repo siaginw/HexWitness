@@ -8,7 +8,7 @@ HexWitness 1.0 establishes stable public contracts. Run `hexwitness contract` or
 |---|---|
 | CLI | Existing command names, successful exit behavior, and option semantics remain compatible. New commands and optional fields may be added. |
 | REST | `/v1` remains read-only and backward compatible. New routes and response fields may be added. Existing meanings are not silently changed. |
-| MCP | Existing tool names and required inputs remain compatible. New tools and optional inputs may be added. |
+| MCP | Existing tool names and required inputs remain compatible. New tools and optional inputs may be added. Query tools remain read-only; investigation-ledger and execution tools advertise their effects truthfully. |
 | JSONL | `hexwitness-jsonl-v1` remains readable throughout 1.x. Additive record fields remain allowed. |
 | Database | Supported older schemas migrate forward without evidence loss. A database from a newer unsupported schema fails closed. |
 | Capture packs | v1 manifests remain verifiable throughout 1.x. Additive metadata remains allowed. |

@@ -208,6 +208,74 @@ CREATE TABLE IF NOT EXISTS gaps(
   FOREIGN KEY(capture_id) REFERENCES captures(capture_id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS investigations(
+  investigation_id TEXT PRIMARY KEY,
+  build_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  question TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'planned' CHECK(status IN ('planned','active','blocked','complete','abandoned')),
+  priority INTEGER NOT NULL DEFAULT 2 CHECK(priority BETWEEN 0 AND 4),
+  playbook_id TEXT,
+  operation_budget INTEGER CHECK(operation_budget IS NULL OR operation_budget > 0),
+  created_utc TEXT NOT NULL,
+  updated_utc TEXT NOT NULL,
+  completed_utc TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY(build_id) REFERENCES builds(build_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS investigation_items(
+  item_id TEXT PRIMARY KEY,
+  investigation_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK(kind IN ('objective','check','decision','note','entity','evidence','claim','gap','capture','attempt')),
+  ref_id TEXT,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','in_progress','done','blocked','skipped')),
+  ordinal INTEGER NOT NULL,
+  required INTEGER NOT NULL DEFAULT 0 CHECK(required IN (0,1)),
+  details_json TEXT NOT NULL DEFAULT '{}',
+  created_utc TEXT NOT NULL,
+  updated_utc TEXT NOT NULL,
+  UNIQUE(investigation_id,ordinal),
+  FOREIGN KEY(investigation_id) REFERENCES investigations(investigation_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS failed_attempts(
+  attempt_id TEXT PRIMARY KEY,
+  investigation_id TEXT,
+  build_id TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  method TEXT NOT NULL,
+  expected_result TEXT NOT NULL,
+  actual_result TEXT NOT NULL,
+  lesson TEXT NOT NULL,
+  tool TEXT,
+  tool_version TEXT,
+  observed_utc TEXT NOT NULL,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  FOREIGN KEY(investigation_id) REFERENCES investigations(investigation_id) ON DELETE SET NULL,
+  FOREIGN KEY(build_id) REFERENCES builds(build_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS failed_attempt_evidence(
+  attempt_id TEXT NOT NULL,
+  evidence_id TEXT NOT NULL,
+  PRIMARY KEY(attempt_id,evidence_id),
+  FOREIGN KEY(attempt_id) REFERENCES failed_attempts(attempt_id) ON DELETE CASCADE,
+  FOREIGN KEY(evidence_id) REFERENCES evidence(evidence_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS investigation_usage(
+  usage_id TEXT PRIMARY KEY,
+  investigation_id TEXT NOT NULL,
+  operation TEXT NOT NULL,
+  units INTEGER NOT NULL CHECK(units > 0),
+  source TEXT NOT NULL DEFAULT 'manual',
+  note TEXT,
+  ts_utc TEXT NOT NULL,
+  FOREIGN KEY(investigation_id) REFERENCES investigations(investigation_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS import_runs(
   import_id TEXT PRIMARY KEY,
   source_path TEXT NOT NULL,
@@ -237,6 +305,10 @@ CREATE INDEX IF NOT EXISTS idx_markers_capture ON markers(capture_id,ordinal);
 CREATE INDEX IF NOT EXISTS idx_relationships_capture ON relationships(capture_id,kind);
 CREATE INDEX IF NOT EXISTS idx_slices_entity ON analysis_slices(build_id,entity_key,kind);
 CREATE INDEX IF NOT EXISTS idx_gaps_status ON gaps(status,priority,updated_utc);
+CREATE INDEX IF NOT EXISTS idx_investigations_build_status ON investigations(build_id,status,priority,updated_utc);
+CREATE INDEX IF NOT EXISTS idx_investigation_items_kind ON investigation_items(investigation_id,kind,status);
+CREATE INDEX IF NOT EXISTS idx_failed_attempts_scope ON failed_attempts(build_id,investigation_id,observed_utc);
+CREATE INDEX IF NOT EXISTS idx_investigation_usage ON investigation_usage(investigation_id,ts_utc);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts USING fts5(
   entity_id UNINDEXED, build_id UNINDEXED, kind UNINDEXED,
@@ -245,6 +317,9 @@ CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts USING fts5(
 CREATE VIRTUAL TABLE IF NOT EXISTS events_fts USING fts5(
   event_id UNINDEXED, capture_id UNINDEXED, source UNINDEXED, kind UNINDEXED, direction UNINDEXED,
   name, summary, fields
+);
+CREATE VIRTUAL TABLE IF NOT EXISTS discovery_fts USING fts5(
+  ref UNINDEXED, build_id UNINDEXED, kind UNINDEXED, title, text, metadata
 );
 
 CREATE TRIGGER IF NOT EXISTS entities_fts_insert AFTER INSERT ON entities BEGIN
@@ -270,6 +345,55 @@ CREATE TRIGGER IF NOT EXISTS events_fts_update AFTER UPDATE ON events BEGIN
   DELETE FROM events_fts WHERE event_id=old.event_id;
   INSERT INTO events_fts(event_id,capture_id,source,kind,direction,name,summary,fields)
   VALUES(new.event_id,new.capture_id,new.source,new.kind,new.direction,new.name,new.summary,new.fields_json);
+END;
+
+CREATE TRIGGER IF NOT EXISTS discovery_entity_insert AFTER INSERT ON entities BEGIN
+  INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) VALUES(new.entity_id,new.build_id,'entity',COALESCE(new.name,new.stable_key),COALESCE(new.signature,'')||' '||COALESCE(new.decompiler,'')||' '||new.stable_key,new.metadata_json);
+END;
+CREATE TRIGGER IF NOT EXISTS discovery_entity_delete AFTER DELETE ON entities BEGIN DELETE FROM discovery_fts WHERE ref=old.entity_id AND kind='entity'; END;
+CREATE TRIGGER IF NOT EXISTS discovery_entity_update AFTER UPDATE ON entities BEGIN
+  DELETE FROM discovery_fts WHERE ref=old.entity_id AND kind='entity';
+  INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) VALUES(new.entity_id,new.build_id,'entity',COALESCE(new.name,new.stable_key),COALESCE(new.signature,'')||' '||COALESCE(new.decompiler,'')||' '||new.stable_key,new.metadata_json);
+END;
+CREATE TRIGGER IF NOT EXISTS discovery_evidence_insert AFTER INSERT ON evidence BEGIN
+  INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) VALUES(new.evidence_id,new.build_id,'evidence',new.summary,new.source||' '||new.source_ref||' '||new.summary,new.metadata_json);
+END;
+CREATE TRIGGER IF NOT EXISTS discovery_evidence_delete AFTER DELETE ON evidence BEGIN DELETE FROM discovery_fts WHERE ref=old.evidence_id AND kind='evidence'; END;
+CREATE TRIGGER IF NOT EXISTS discovery_evidence_update AFTER UPDATE ON evidence BEGIN
+  DELETE FROM discovery_fts WHERE ref=old.evidence_id AND kind='evidence';
+  INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) VALUES(new.evidence_id,new.build_id,'evidence',new.summary,new.source||' '||new.source_ref||' '||new.summary,new.metadata_json);
+END;
+CREATE TRIGGER IF NOT EXISTS discovery_claim_insert AFTER INSERT ON claims BEGIN
+  INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) VALUES(new.claim_id,new.build_id,'claim',new.subject||' '||new.predicate,new.subject||' '||new.predicate||' '||new.object_json,json_object('subject',new.subject,'status',new.status));
+END;
+CREATE TRIGGER IF NOT EXISTS discovery_claim_delete AFTER DELETE ON claims BEGIN DELETE FROM discovery_fts WHERE ref=old.claim_id AND kind='claim'; END;
+CREATE TRIGGER IF NOT EXISTS discovery_claim_update AFTER UPDATE ON claims BEGIN
+  DELETE FROM discovery_fts WHERE ref=old.claim_id AND kind='claim';
+  INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) VALUES(new.claim_id,new.build_id,'claim',new.subject||' '||new.predicate,new.subject||' '||new.predicate||' '||new.object_json,json_object('subject',new.subject,'status',new.status));
+END;
+CREATE TRIGGER IF NOT EXISTS discovery_event_insert AFTER INSERT ON events BEGIN
+  INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) VALUES(new.event_id,(SELECT build_id FROM captures WHERE capture_id=new.capture_id),'capture_event',new.name,new.source||' '||new.kind||' '||new.name||' '||COALESCE(new.summary,'')||' '||new.fields_json,json_object('capture_id',new.capture_id,'ordinal',new.ordinal));
+END;
+CREATE TRIGGER IF NOT EXISTS discovery_event_delete AFTER DELETE ON events BEGIN DELETE FROM discovery_fts WHERE ref=old.event_id AND kind='capture_event'; END;
+CREATE TRIGGER IF NOT EXISTS discovery_event_update AFTER UPDATE ON events BEGIN
+  DELETE FROM discovery_fts WHERE ref=old.event_id AND kind='capture_event';
+  INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) VALUES(new.event_id,(SELECT build_id FROM captures WHERE capture_id=new.capture_id),'capture_event',new.name,new.source||' '||new.kind||' '||new.name||' '||COALESCE(new.summary,'')||' '||new.fields_json,json_object('capture_id',new.capture_id,'ordinal',new.ordinal));
+END;
+CREATE TRIGGER IF NOT EXISTS discovery_investigation_insert AFTER INSERT ON investigations BEGIN
+  INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) VALUES(new.investigation_id,new.build_id,'investigation',new.title,new.question||' '||new.title,json_object('status',new.status,'playbook_id',new.playbook_id));
+END;
+CREATE TRIGGER IF NOT EXISTS discovery_investigation_delete AFTER DELETE ON investigations BEGIN DELETE FROM discovery_fts WHERE ref=old.investigation_id AND kind='investigation'; END;
+CREATE TRIGGER IF NOT EXISTS discovery_investigation_update AFTER UPDATE ON investigations BEGIN
+  DELETE FROM discovery_fts WHERE ref=old.investigation_id AND kind='investigation';
+  INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) VALUES(new.investigation_id,new.build_id,'investigation',new.title,new.question||' '||new.title,json_object('status',new.status,'playbook_id',new.playbook_id));
+END;
+CREATE TRIGGER IF NOT EXISTS discovery_attempt_insert AFTER INSERT ON failed_attempts BEGIN
+  INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) VALUES(new.attempt_id,new.build_id,'failed_attempt',new.subject||' — '||new.method,new.subject||' '||new.method||' '||new.expected_result||' '||new.actual_result||' '||new.lesson,json_object('investigation_id',new.investigation_id,'tool',new.tool,'tool_version',new.tool_version));
+END;
+CREATE TRIGGER IF NOT EXISTS discovery_attempt_delete AFTER DELETE ON failed_attempts BEGIN DELETE FROM discovery_fts WHERE ref=old.attempt_id AND kind='failed_attempt'; END;
+CREATE TRIGGER IF NOT EXISTS discovery_attempt_update AFTER UPDATE ON failed_attempts BEGIN
+  DELETE FROM discovery_fts WHERE ref=old.attempt_id AND kind='failed_attempt';
+  INSERT INTO discovery_fts(ref,build_id,kind,title,text,metadata) VALUES(new.attempt_id,new.build_id,'failed_attempt',new.subject||' — '||new.method,new.subject||' '||new.method||' '||new.expected_result||' '||new.actual_result||' '||new.lesson,json_object('investigation_id',new.investigation_id,'tool',new.tool,'tool_version',new.tool_version));
 END;
 
 `;

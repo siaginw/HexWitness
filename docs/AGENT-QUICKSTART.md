@@ -21,12 +21,12 @@ only if a gap report proves it is needed. Make any new result durable with the
 smallest possible exporter scope.
 ```
 
-The `hexwitness_start_investigation` MCP prompt gives an agent the complete sequence below. More examples: [AI-first workflows](AI-FIRST-WORKFLOWS.md).
+The `hexwitness_start_investigation` MCP prompt gives an agent the complete sequence below. MCP includes investigation-ledger mutations, so a generic MCP agent can create, update, budget, challenge, and complete work without requiring a separate shell. More examples: [AI-first workflows](AI-FIRST-WORKFLOWS.md).
 
 ## Investigation recipe
 
 ```text
-health → builds → search/query → explain → focused graph or capture query → evidence → contradictions → gaps
+health → memory/builds → resume/create investigation → failed attempts → discovery → exact query/explain → focused proof → challenge → completion gate
 ```
 
 ### 1. Establish build identity
