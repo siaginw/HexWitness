@@ -10,7 +10,7 @@ Treat optional Binary Ninja or IDA results as provisional. Prefer read-only insp
 
 For multi-step work, use `hexwitness_investigation_create` and the investigation item/status/usage tools with deterministic playbooks, `hexwitness_failed_attempts`, and `hexwitness_evidence_challenge`. Retrieval through `hexwitness_discover` only finds candidates; open the exact source record. Local tools are agent-callable through `hexwitness_local_tool_status` and `hexwitness_run_local_tool`, with output remaining observational. Never pass credentials through HexWitness; Claude Desktop owns model authentication. Diagnose adapters through `hexwitness_adapter_diagnostics`.
 
-For a new runtime run, require exact build identity, bidirectional wire, semantic events, timestamped action markers, screen recording, and context. Normalize, seal, and verify it; reject missing baseline evidence by default.
+For a new runtime run, require exact build identity, bidirectional wire, semantic events, timestamped action markers, screen recording, and context. Preserve every event's original UTC timestamp. Normalize, seal, and verify it; never rewrite a sealed pack or compare different builds. Reject missing baseline evidence by default.
 
 Use MCP tools for investigations. Treat `hexwitness` as the only installed command: `hexwitness agent` is the MCP autostart entry and `hexwitness adapters [ID]` resolves adapter capabilities and paths. Never depend on package-internal paths.
 

@@ -10,9 +10,10 @@ HexWitness publishes only claims that have a visible test, audit, or documented 
 | `npm run test:coverage` | Coverage report for core, interfaces, setup, and adapters |
 | `npm run public:audit` | No obvious credentials, private paths, proprietary binary formats, captures, dumps, oversized payloads, or target-specific corpus references |
 | `npm audit --audit-level=high` | No known high-or-critical npm dependency advisory in the resolved tree |
-| `npm run test:package` | Packed artifact installs in isolation, exposes one executable with no runtime dependency tree or source internals, discovers adapters, and completes CLI → DB → daemon autostart → MCP → evidence query |
+| `npm run test:package` | Packed artifact installs in isolation, exposes one executable with no runtime dependency tree or source internals, discovers adapters, executes the installed Frida normalizer, and completes CLI → DB → daemon autostart → MCP → evidence query |
 | `npm run test:upgrade` | Installed 1.0 migrates a schema-1 database without evidence loss and creates a verified backup |
 | `npm run test:load` | Mixed concurrent read-only daemon queries complete without request failures |
+| `npm run test:scale` | A generated large static export streams through atomic ingest and indexed UUID lookup with exact counts |
 | `npm run release:check` | Runtime, package, changelog, and release tag versions agree |
 | CodeQL | JavaScript security-extended analysis on pushes, pull requests, and a weekly schedule |
 | Tagged release | Release archive, CycloneDX SBOM, SHA-256 manifest, and GitHub provenance/SBOM attestations |
@@ -29,6 +30,7 @@ npm audit --audit-level=high
 npm run test:package
 npm run test:upgrade
 npm run test:load
+npm run test:scale
 npm run release:check
 ```
 
@@ -53,6 +55,7 @@ The automated suite checks these boundaries together:
 15. Concurrent mixed daemon queries complete under a configurable sustained-load gate.
 16. Durable investigations cannot complete without required checks, a proof link, and closed linked gaps.
 17. Failed attempts, evidence challenges, discovery-only retrieval, local execution receipts, and the loopback dashboard have focused tests.
+18. Streaming ingest, disk-backed capture normalization, provenance-preserving evidence upserts, timeout handling, Host validation, and runtime/schema parity have regression tests.
 
 ## Evidence correctness checks
 

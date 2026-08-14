@@ -1,18 +1,24 @@
-import { createHash } from "node:crypto";
 import {
   appendFileSync,
   copyFileSync,
   existsSync,
   mkdirSync,
+  closeSync,
+  openSync,
   readFileSync,
   readdirSync,
   rmSync,
   statSync,
+  renameSync,
+  writeSync,
   writeFileSync,
 } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
 import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
 import { CAPTURE_PACK_SCHEMA, FORMAT } from "./constants.mjs";
-import { canonicalAddress, nowUtc, sha256, stableId } from "./util.mjs";
+import { canonicalAddress, nowUtc, stableId } from "./util.mjs";
+import { countJsonlStreaming, hashFileStreaming, textLinesStreaming } from "./file-io.mjs";
+import { requireUtcTimestamp, sanitizeCaptureFields, summarizeCapturePayload } from "../adapters/common/event-safety.mjs";
 
 export const BASELINE_CAPTURE_ROLES = Object.freeze([
   "bidirectional-wire",
@@ -22,11 +28,25 @@ export const BASELINE_CAPTURE_ROLES = Object.freeze([
   "context",
 ]);
 
-const SENSITIVE_KEYS = /(^|_)(authorization|cookie|credential|password|secret|steam_ticket|token)($|_)/i;
-const PAYLOAD_KEYS = /^(body|bytes|payload|raw|buffer|data)$/i;
-
 function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function jsonlWriter(path) {
+  const handle = openSync(path, "w");
+  let pending = "";
+  const flush = () => {
+    if (!pending) return;
+    writeSync(handle, pending, null, "utf8");
+    pending = "";
+  };
+  return {
+    write(value) {
+      pending += `${JSON.stringify(value)}\n`;
+      if (Buffer.byteLength(pending) >= 1024 * 1024) flush();
+    },
+    close() { flush(); closeSync(handle); },
+  };
 }
 
 function readJson(path) {
@@ -34,9 +54,7 @@ function readJson(path) {
 }
 
 function hashFile(path) {
-  const hash = createHash("sha256");
-  hash.update(readFileSync(path));
-  return hash.digest("hex");
+  return hashFileStreaming(path);
 }
 
 function inside(root, candidate) {
@@ -67,7 +85,7 @@ function uniqueArtifactName(directory, source) {
 
 function countJsonl(path) {
   if (extname(path).toLowerCase() !== ".jsonl") return null;
-  return readFileSync(path, "utf8").split(/\r?\n/).filter((line) => line.trim()).length;
+  return countJsonlStreaming(path);
 }
 
 function mediaType(path) {
@@ -83,36 +101,10 @@ function mediaType(path) {
   })[extname(path).toLowerCase()] ?? "application/octet-stream";
 }
 
-function sanitizedValue(value) {
-  if (Array.isArray(value)) return value.map((item) => sanitizedValue(item));
-  if (!value || typeof value !== "object") return value;
-  const out = {};
-  for (const [key, nested] of Object.entries(value)) {
-    if (SENSITIVE_KEYS.test(key) || PAYLOAD_KEYS.test(key)) continue;
-    out[key] = sanitizedValue(nested);
-  }
-  return out;
-}
-
-function sanitizedFields(input) {
-  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
-  return sanitizedValue(input);
-}
-
-function payloadSummary(raw) {
-  for (const key of Object.keys(raw)) {
-    if (!PAYLOAD_KEYS.test(key) || raw[key] == null) continue;
-    const value = typeof raw[key] === "string" ? raw[key] : JSON.stringify(raw[key]);
-    return { body_len: Buffer.byteLength(value), body_sha256: sha256(value) };
-  }
-  return {};
-}
-
 function normalizeEvent(raw, context) {
-  const timestamp = raw.ts_utc ?? raw.timestamp ?? raw.time;
-  if (typeof timestamp !== "string" || !timestamp.endsWith("Z") || !Number.isFinite(Date.parse(timestamp))) throw new Error(`event ${context.source}#${context.ordinal} requires an ISO-8601 UTC timestamp ending in Z`);
+  const timestamp = requireUtcTimestamp(raw, `event ${context.source}#${context.ordinal}`);
   const address = raw.address ?? raw.rva ?? raw.hook_rva ?? raw.pc;
-  const payload = payloadSummary(raw);
+  const payload = summarizeCapturePayload(raw);
   return {
     format: FORMAT,
     record: "event",
@@ -132,7 +124,7 @@ function normalizeEvent(raw, context) {
     confidence: raw.confidence ?? 1,
     action_id: raw.action_id ?? raw.marker,
     summary: raw.summary,
-    fields: sanitizedFields(raw.fields ?? raw.args ?? raw),
+    fields: sanitizeCaptureFields(raw.fields ?? raw.args ?? raw),
   };
 }
 
@@ -205,10 +197,11 @@ export function addCaptureMarker(root, name, note = null, metadata = {}, options
   return marker;
 }
 
-export function normalizeCapturePack(root) {
+export function normalizeCapturePack(root, { allowSealed = false } = {}) {
   const pack = requirePack(root);
+  if (pack.manifest.status !== "active" && !allowSealed) throw new Error("capture pack is sealed; normalized evidence is immutable");
   if (!pack.manifest.build_id) throw new Error("capture pack build_id is required before normalization");
-  const records = [{
+  const baseRecords = [{
     format: FORMAT, record: "build", build_id: pack.manifest.build_id,
     label: pack.manifest.context?.build_label ?? pack.manifest.build_id,
     sha256: pack.manifest.executable_sha256 ?? undefined,
@@ -224,67 +217,82 @@ export function normalizeCapturePack(root) {
     status: pack.manifest.status,
     metadata: { title: pack.manifest.title, context: pack.manifest.context, quality: pack.manifest.quality },
   }];
-  for (const marker of pack.manifest.markers) records.push({
+  for (const marker of pack.manifest.markers) baseRecords.push({
     format: FORMAT, record: "marker", build_id: pack.manifest.build_id, capture_id: pack.manifest.capture_id, ordinal: marker.ordinal,
     ts_utc: marker.ts_utc, name: marker.name, note: marker.note, metadata: marker.metadata,
   });
-  let ordinal = 0;
-  const normalizedEvents = [];
-  const rawEvents = [];
-  let sourceSequence = 0;
-  for (const artifact of pack.manifest.artifacts) {
-    records.push({ format: FORMAT, record: "capture_artifact", build_id: pack.manifest.build_id, capture_id: pack.manifest.capture_id, ...artifact });
-    if (artifact.media_type !== "application/x-ndjson" || artifact.role === "normalized-evidence") continue;
-    const path = join(pack.root, artifact.path);
-    const lines = readFileSync(path, "utf8").split(/\r?\n/).filter((line) => line.trim());
-    for (const [index, line] of lines.entries()) {
-      let raw;
-      try { raw = JSON.parse(line); } catch (error) { throw new Error(`${artifact.path}:${index + 1}: ${error.message}`); }
-      if (raw.format === FORMAT && raw.record && raw.record !== "event") continue;
-      sourceSequence += 1;
-      rawEvents.push({ raw, source: artifact.role, sourceSequence });
-    }
-  }
-  rawEvents.sort((left, right) => {
-    const leftTime = Date.parse(left.raw.ts_utc ?? left.raw.timestamp ?? left.raw.time ?? "");
-    const rightTime = Date.parse(right.raw.ts_utc ?? right.raw.timestamp ?? right.raw.time ?? "");
-    if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) return leftTime - rightTime;
-    return left.sourceSequence - right.sourceSequence;
-  });
-  for (const item of rawEvents) {
-    ordinal += 1;
-    const event = normalizeEvent(item.raw, { captureId: pack.manifest.capture_id, buildId: pack.manifest.build_id, ordinal, source: item.source });
-    records.push(event);
-    normalizedEvents.push(event);
-  }
-  const markerRefs = new Map(pack.manifest.markers.flatMap((marker) => [[String(marker.ordinal), `marker:${marker.name}`], [marker.name, `marker:${marker.name}`]]));
-  const correlated = new Map();
-  const relationshipKeys = new Set();
-  const addRelationship = (sourceRef, kind, targetRef, evidence) => {
-    const key = `${sourceRef}|${kind}|${targetRef}`;
-    if (relationshipKeys.has(key)) return;
-    relationshipKeys.add(key);
-    records.push({ format: FORMAT, record: "relationship", build_id: pack.manifest.build_id, capture_id: pack.manifest.capture_id,
-      source_ref: sourceRef, kind, target_ref: targetRef, confidence: 1, evidence });
-  };
-  for (const event of normalizedEvents) {
-    const eventRef = `event:${event.event_id}`;
-    if (event.action_id != null && markerRefs.has(String(event.action_id))) addRelationship(markerRefs.get(String(event.action_id)), "marks", eventRef, [event.event_id]);
-    const fields = event.fields ?? {};
-    const correlation = fields.correlation_id ?? fields.request_id ?? fields.trace_id ?? fields.transaction_id;
-    if (correlation != null) {
-      const correlationKey = String(correlation);
-      const previous = correlated.get(correlationKey);
-      if (previous) addRelationship(`event:${previous.event_id}`, previous.direction !== event.direction ? "response_to" : "follows", eventRef, [previous.event_id, event.event_id]);
-      correlated.set(correlationKey, event);
-    }
-    for (const identityKey of ["object_id", "actor_id", "entity_id", "resource_id", "session_id", "type_id", "uuid"]) {
-      if (fields[identityKey] != null) addRelationship(eventRef, `observes_${identityKey}`, `${identityKey}:${fields[identityKey]}`, [event.event_id]);
-    }
-  }
   const output = join(pack.root, "normalized", "evidence.hexwitness.jsonl");
-  writeFileSync(output, `${records.map((record) => JSON.stringify(record)).join("\n")}\n`, "utf8");
-  return { output, records: records.length, events: ordinal };
+  const temporaryOutput = `${output}.tmp-${process.pid}`;
+  const stagingPath = join(pack.root, "normalized", `.events-${process.pid}-${Date.now()}.sqlite`);
+  const staging = new DatabaseSync(stagingPath);
+  let sourceSequence = 0;
+  let writer = null;
+  let inTransaction = false;
+  try {
+    staging.exec("PRAGMA journal_mode=OFF; PRAGMA synchronous=OFF; CREATE TABLE raw_events(sequence INTEGER PRIMARY KEY,ts_millis INTEGER NOT NULL,source TEXT NOT NULL,raw_json TEXT NOT NULL); CREATE INDEX raw_events_order ON raw_events(ts_millis,sequence); CREATE TABLE correlations(correlation_key TEXT PRIMARY KEY,event_id TEXT NOT NULL,direction TEXT);");
+    const insert = staging.prepare("INSERT INTO raw_events(sequence,ts_millis,source,raw_json) VALUES(?,?,?,?)");
+    staging.exec("BEGIN"); inTransaction = true;
+    for (const artifact of pack.manifest.artifacts) {
+      baseRecords.push({ format: FORMAT, record: "capture_artifact", build_id: pack.manifest.build_id, capture_id: pack.manifest.capture_id, ...artifact });
+      if (artifact.media_type !== "application/x-ndjson" || artifact.role === "normalized-evidence") continue;
+      const path = join(pack.root, artifact.path);
+      let index = 0;
+      for (const line of textLinesStreaming(path)) {
+        index += 1;
+        if (!line.trim()) continue;
+        let raw;
+        try { raw = JSON.parse(line); } catch (error) { throw new Error(`${artifact.path}:${index}: ${error.message}`); }
+        if (raw.format === FORMAT && raw.record && raw.record !== "event") continue;
+        const timestamp = requireUtcTimestamp(raw, `event ${artifact.role}#${index}`);
+        sourceSequence += 1;
+        insert.run(sourceSequence, Date.parse(timestamp), artifact.role, JSON.stringify(raw));
+        if (sourceSequence % 10_000 === 0) { staging.exec("COMMIT; BEGIN"); }
+      }
+    }
+    staging.exec("COMMIT"); inTransaction = false;
+
+    writer = jsonlWriter(temporaryOutput);
+    let recordCount = 0;
+    const writeRecord = (record) => { writer.write(record); recordCount += 1; };
+    for (const record of baseRecords) writeRecord(record);
+    const markerRefs = new Map(pack.manifest.markers.flatMap((marker) => [[String(marker.ordinal), `marker:${marker.name}`], [marker.name, `marker:${marker.name}`]]));
+    const previousCorrelation = staging.prepare("SELECT event_id,direction FROM correlations WHERE correlation_key=?");
+    const retainCorrelation = staging.prepare("INSERT INTO correlations(correlation_key,event_id,direction) VALUES(?,?,?) ON CONFLICT(correlation_key) DO UPDATE SET event_id=excluded.event_id,direction=excluded.direction");
+    const addRelationship = (sourceRef, kind, targetRef, evidence) => {
+      writeRecord({ format: FORMAT, record: "relationship", build_id: pack.manifest.build_id, capture_id: pack.manifest.capture_id,
+        source_ref: sourceRef, kind, target_ref: targetRef, confidence: 1, evidence });
+    };
+    let ordinal = 0;
+    for (const row of staging.prepare("SELECT source,raw_json FROM raw_events ORDER BY ts_millis,sequence").iterate()) {
+      ordinal += 1;
+      const event = normalizeEvent(JSON.parse(row.raw_json), { captureId: pack.manifest.capture_id, buildId: pack.manifest.build_id, ordinal, source: row.source });
+      writeRecord(event);
+      const eventRef = `event:${event.event_id}`;
+      if (event.action_id != null && markerRefs.has(String(event.action_id))) addRelationship(markerRefs.get(String(event.action_id)), "marks", eventRef, [event.event_id]);
+      const fields = event.fields ?? {};
+      const correlation = fields.correlation_id ?? fields.request_id ?? fields.trace_id ?? fields.transaction_id;
+      if (correlation != null) {
+        const correlationKey = String(correlation);
+        const previous = previousCorrelation.get(correlationKey);
+        if (previous) addRelationship(`event:${previous.event_id}`, previous.direction !== event.direction ? "response_to" : "follows", eventRef, [previous.event_id, event.event_id]);
+        retainCorrelation.run(correlationKey, event.event_id, event.direction ?? null);
+      }
+      for (const identityKey of ["object_id", "actor_id", "entity_id", "resource_id", "session_id", "type_id", "uuid"]) {
+        if (fields[identityKey] != null) addRelationship(eventRef, `observes_${identityKey}`, `${identityKey}:${fields[identityKey]}`, [event.event_id]);
+      }
+    }
+    writer.close(); writer = null;
+    renameSync(temporaryOutput, output);
+    return { output, records: recordCount, events: ordinal, memory_mode: "streaming-external-sort" };
+  } catch (error) {
+    if (inTransaction) try { staging.exec("ROLLBACK"); } catch {}
+    try { writer?.close(); } catch {}
+    rmSync(temporaryOutput, { force: true });
+    throw error;
+  } finally {
+    staging.close();
+    rmSync(stagingPath, { force: true });
+  }
 }
 
 export function auditCapturePack(root) {
@@ -314,6 +322,7 @@ export function auditCapturePack(root) {
 
 export function sealCapturePack(root, { allowIncomplete = false } = {}) {
   const pack = requirePack(root);
+  if (pack.manifest.status !== "active") throw new Error("capture pack is already sealed");
   const originalManifest = structuredClone(pack.manifest);
   const normalizedOutput = join(pack.root, "normalized", "evidence.hexwitness.jsonl");
   const checksumOutput = join(pack.root, "checksums.sha256");
@@ -328,7 +337,7 @@ export function sealCapturePack(root, { allowIncomplete = false } = {}) {
     pack.manifest.quality = preflight.passed ? "accepted" : "incomplete";
     pack.manifest.quality_report = preflight;
     writeJson(pack.path, pack.manifest);
-    const normalized = normalizeCapturePack(pack.root);
+    const normalized = normalizeCapturePack(pack.root, { allowSealed: true });
     const normalizedPath = relative(pack.root, normalized.output).replaceAll("\\", "/");
     if (!pack.manifest.artifacts.some((item) => item.path === normalizedPath)) {
       pack.manifest.artifacts.push({ role: "normalized-evidence", path: normalizedPath, sha256: hashFile(normalized.output), size_bytes: statSync(normalized.output).size, media_type: "application/x-ndjson", event_count: normalized.records });

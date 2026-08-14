@@ -78,7 +78,7 @@ hexwitness capture import ./captures/login-roundtrip
 
 `seal` fails when a required role or marker is missing. `--allow-incomplete` can retain that exploratory evidence and labels the pack `incomplete`. It never bypasses integrity errors: empty, missing, escaped, size-mismatched, or hash-mismatched artifacts still fail.
 
-Normalization and sealing are recoverable. If normalization throws, the manifest returns to `active` instead of leaving a half-sealed pack.
+Normalization and sealing are recoverable. If normalization throws, the manifest returns to `active` instead of leaving a half-sealed pack. Normalization uses a temporary SQLite ordering index and buffered output, keeping memory bounded for long JSONL traces. Once sealed, normalized evidence is immutable; create a new pack instead of rewriting its checksummed timeline.
 
 ## Directory layout
 
@@ -98,8 +98,9 @@ capture/
 
 ## Normalization rules
 
-- Raw `body`, `bytes`, `payload`, `buffer`, and `data` values become length and SHA-256 only.
-- Credential, cookie, password, secret, token, and authorization fields are removed recursively.
+- Raw `body`, `bytes`, `payload`, `buffer`, `data`, `packet`, `frame`, `wire`, and `raw` values become length and SHA-256 only.
+- API-key, auth, bearer, cookie, credential, JWT, password, secret, session-key, ticket, and token fields are removed recursively.
+- Every event must carry its original ISO-8601 UTC timestamp ending in `Z`; normalizers never fabricate one.
 - Addresses become canonical hexadecimal strings.
 - Events retain source, direction, kind, name, thread, marker, summary, confidence, and safe structured fields.
 - Shared correlation IDs produce request/response or ordered relationships.

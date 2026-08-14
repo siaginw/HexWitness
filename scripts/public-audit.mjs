@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname.replace(/^\/(.:)/, "$1");
+const root = fileURLToPath(new URL("..", import.meta.url));
 const ignored = new Set([".git", "node_modules", ".hexwitness", "dist", "coverage"]);
 const forbiddenExtensions = new Set([".exe", ".dll", ".so", ".dylib", ".bndb", ".i64", ".idb", ".gzf", ".pcap", ".pcapng", ".dmp", ".core"]);
 const textExtensions = new Set([".md", ".mjs", ".js", ".json", ".py", ".txt", ".yml", ".yaml", ".svg", ".xml", ".toml", ".sh", ".ps1", ""]);

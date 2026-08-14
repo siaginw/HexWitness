@@ -20,7 +20,7 @@ Activity history stores:
 - optional hashed session label;
 - duration, result count, and status.
 
-It does not store argument values, prompts, returned evidence, raw bytes, decompiler text, or agent conversations. Default retention is 30 days.
+It does not store argument values, prompts, returned evidence, raw bytes, decompiler text, or agent conversations. Default retention is 30 days. Argument hashes are pseudonymous, not secret: low-entropy inputs such as common addresses or short search terms can be dictionary-guessed by someone who already has the activity database. Disable activity logging or protect that database when this matters.
 
 This separation defines HexWitness memory: the evidence database retains findings that a user intentionally exports and ingests; the activity database records that a query occurred without retaining the query or answer. Live viewer results are not silently copied into either database.
 
@@ -28,7 +28,7 @@ This separation defines HexWitness memory: the evidence database retains finding
 
 The agent-callable local-tool runner has no environment enable gate. It runs with the current local user's permissions and is not an OS sandbox, so only authorized workspaces and targets belong in scope. It uses no shell, enforces an executable allowlist and real-path cwd root, caps time/output, rejects credential-like arguments, removes credential-shaped environment variables from the child, and returns a receipt. Recording retains command identity, argv, input hashes, output hash, timing, and exit state—not automatic semantic claims. Do not include sensitive output in public reports.
 
-The loopback dashboard is read-only and unavailable on non-local binds. It does not expose a tool-execution control.
+The loopback dashboard is read-only and unavailable on non-local binds. Loopback HTTP also rejects non-loopback `Host` headers to prevent browser DNS-rebinding reads. It does not expose a tool-execution control.
 
 ## Publication checklist
 

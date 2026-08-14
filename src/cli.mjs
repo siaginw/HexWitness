@@ -26,7 +26,29 @@ import { localToolStatus, recordToolObservation, runLocalTool } from "./executor
 
 function option(args, name, fallback = null) {
   const index = args.indexOf(name);
-  return index >= 0 ? args[index + 1] : fallback;
+  if (index < 0) return fallback;
+  const value = args[index + 1];
+  if (value == null || value.startsWith("--")) throw new Error(`${name} requires a value`);
+  return value;
+}
+
+function selectorArgument(args, label = "entity selector") {
+  const stableKey = option(args, "--stable-key");
+  const entityId = option(args, "--entity-id");
+  const address = args[1] && !args[1].startsWith("--") ? args[1] : null;
+  if (!address && !stableKey && !entityId) throw new Error(`${label} requires ADDRESS, --stable-key, or --entity-id`);
+  return { buildId: option(args, "--build"), address, stableKey, entityId };
+}
+
+function requiredPositional(args, index, label) {
+  const value = args[index];
+  if (!value || value.startsWith("--")) throw new Error(`${label} is required before options`);
+  return value;
+}
+
+function optionalPositional(args, index, fallback = "") {
+  const value = args[index];
+  return value && !value.startsWith("--") ? value : fallback;
 }
 
 function print(value) { process.stdout.write(`${JSON.stringify(value, null, 2)}\n`); }
@@ -49,7 +71,7 @@ Usage:
   hexwitness search QUERY [--build BUILD] [--kind KIND]
   hexwitness builds
   hexwitness memory
-  hexwitness explain ADDRESS [--build BUILD]
+  hexwitness explain [ADDRESS | --stable-key KEY | --entity-id ID] [--build BUILD]
   hexwitness gaps ADDRESS [--build BUILD] [--objective behavior]
   hexwitness guide [identity|control_flow|data_flow|object_model|protocol|runtime|behavior]
   hexwitness contradictions [--build BUILD]
@@ -111,9 +133,9 @@ HEXWITNESS_PORT, HEXWITNESS_API_TOKEN, HEXWITNESS_ACTIVITY_RETENTION_DAYS.`);
 const args = process.argv.slice(2);
 const command = args[0];
 const controlArgs = command === "tool" && args.includes("--") ? args.slice(0, args.indexOf("--")) : args;
-const config = loadConfig({ evidenceDb: option(controlArgs, "--db") ?? undefined, host: option(controlArgs, "--host") ?? undefined, port: option(controlArgs, "--port") ?? undefined });
 
 try {
+  const config = loadConfig({ evidenceDb: option(controlArgs, "--db") ?? undefined, host: option(controlArgs, "--host") ?? undefined, port: option(controlArgs, "--port") ?? undefined });
   switch (command) {
     case "init": {
       const db = openEvidenceDb(config.evidenceDb); db.close();
@@ -133,31 +155,29 @@ try {
     case "playbooks": print(args[1] ? getPlaybook(args[1]) : listPlaybooks()); break;
     case "contract": print(publicContract()); break;
     case "backup": {
-      if (!args[1]) throw new Error("backup requires an output path");
-      print(backupEvidenceDb(config.evidenceDb, args[1])); break;
+      print(backupEvidenceDb(config.evidenceDb, requiredPositional(args, 1, "backup output path"))); break;
     }
     case "ingest": {
-      if (!args[1]) throw new Error("ingest requires a JSONL file");
-      print(await ingestFile(config.evidenceDb, args[1])); break;
+      print(await ingestFile(config.evidenceDb, requiredPositional(args, 1, "ingest JSONL file"))); break;
     }
     case "query": {
       const db = openEvidenceDb(config.evidenceDb, { readOnly: true });
-      print(genericQuery(db, { buildId: option(args, "--build"), q: args[1] ?? "", kinds: (option(args, "--kinds", "") ?? "").split(",").filter(Boolean), edgeKinds: (option(args, "--edge-kinds", "") ?? "").split(",").filter(Boolean), limit: option(args, "--limit") })); db.close(); break;
+      print(genericQuery(db, { buildId: option(args, "--build"), q: optionalPositional(args, 1), kinds: (option(args, "--kinds", "") ?? "").split(",").filter(Boolean), edgeKinds: (option(args, "--edge-kinds", "") ?? "").split(",").filter(Boolean), limit: option(args, "--limit") })); db.close(); break;
     }
     case "serve": startDaemon(config); break;
     case "search": {
       const db = openEvidenceDb(config.evidenceDb, { readOnly: true });
-      print(search(db, { q: args[1] ?? "", buildId: option(args, "--build"), kind: option(args, "--kind") })); db.close(); break;
+      print(search(db, { q: requiredPositional(args, 1, "search query"), buildId: option(args, "--build"), kind: option(args, "--kind") })); db.close(); break;
     }
     case "builds": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(listBuilds(db)); db.close(); break; }
     case "memory": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(memoryStatus(db)); db.close(); break; }
     case "explain": {
-      if (!args[1]) throw new Error("explain requires an address");
+      const selector = selectorArgument(args, "explain");
       const db = openEvidenceDb(config.evidenceDb, { readOnly: true });
-      print(explain(db, { address: args[1], buildId: option(args, "--build") })); db.close(); break;
+      print(explain(db, selector)); db.close(); break;
     }
     case "gaps": {
-      if (!args[1]) throw new Error("gaps requires an address");
+      requiredPositional(args, 1, "gaps address");
       const db = openEvidenceDb(config.evidenceDb, { readOnly: true });
       print(gapReport(db, { address: args[1], buildId: option(args, "--build") }, option(args, "--objective", "behavior"))); db.close(); break;
     }
@@ -167,24 +187,24 @@ try {
       print(contradictions(db, { buildId: option(args, "--build") })); db.close(); break;
     }
     case "functions": {
-      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(functionInventory(db, { buildId: option(args, "--build"), q: args[1] ?? "", limit: option(args, "--limit") })); db.close(); break;
+      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(functionInventory(db, { buildId: option(args, "--build"), q: optionalPositional(args, 1), limit: option(args, "--limit") })); db.close(); break;
     }
     case "classes": {
-      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(objectModel(db, { buildId: option(args, "--build"), q: args[1] ?? "", limit: option(args, "--limit") })); db.close(); break;
+      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(objectModel(db, { buildId: option(args, "--build"), q: optionalPositional(args, 1), limit: option(args, "--limit") })); db.close(); break;
     }
     case "class": {
-      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(classDetail(db, { buildId: option(args, "--build"), name: args[1] })); db.close(); break;
+      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(classDetail(db, { buildId: option(args, "--build"), name: requiredPositional(args, 1, "class name") })); db.close(); break;
     }
     case "uuid": {
-      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(uuidLookup(db, { buildId: option(args, "--build"), uuid: args[1], limit: option(args, "--limit") })); db.close(); break;
+      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(uuidLookup(db, { buildId: option(args, "--build"), uuid: requiredPositional(args, 1, "UUID"), limit: option(args, "--limit") })); db.close(); break;
     }
     case "types": {
-      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(typeRegistry(db, { buildId: option(args, "--build"), q: args[1] ?? "", kind: option(args, "--kind"), limit: option(args, "--limit") })); db.close(); break;
+      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(typeRegistry(db, { buildId: option(args, "--build"), q: optionalPositional(args, 1), kind: option(args, "--kind"), limit: option(args, "--limit") })); db.close(); break;
     }
-    case "offsets": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(fieldOffsets(db, { buildId: option(args, "--build"), owner: option(args, "--owner", ""), q: args[1] ?? "", limit: option(args, "--limit") })); db.close(); break; }
-    case "metadata": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(metadataLookup(db, { buildId: option(args, "--build"), q: args[1], kinds: (option(args, "--kinds", "") ?? "").split(",").filter(Boolean), limit: option(args, "--limit") })); db.close(); break; }
-    case "decomp-search": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(decompSearch(db, { buildId: option(args, "--build"), q: args[1], kind: option(args, "--kind"), limit: option(args, "--limit") })); db.close(); break; }
-    case "path": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(shortestPath(db, { buildId: option(args, "--build"), address: args[1] }, { buildId: option(args, "--build"), address: args[2] }, { kind: option(args, "--kind"), direction: option(args, "--direction", "outgoing"), depth: option(args, "--depth") })); db.close(); break; }
+    case "offsets": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(fieldOffsets(db, { buildId: option(args, "--build"), owner: option(args, "--owner", ""), q: optionalPositional(args, 1), limit: option(args, "--limit") })); db.close(); break; }
+    case "metadata": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(metadataLookup(db, { buildId: option(args, "--build"), q: requiredPositional(args, 1, "metadata query"), kinds: (option(args, "--kinds", "") ?? "").split(",").filter(Boolean), limit: option(args, "--limit") })); db.close(); break; }
+    case "decomp-search": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(decompSearch(db, { buildId: option(args, "--build"), q: requiredPositional(args, 1, "decompiler query"), kind: option(args, "--kind"), limit: option(args, "--limit") })); db.close(); break; }
+    case "path": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(shortestPath(db, { buildId: option(args, "--build"), address: requiredPositional(args, 1, "path source") }, { buildId: option(args, "--build"), address: requiredPositional(args, 2, "path destination") }, { kind: option(args, "--kind"), direction: option(args, "--direction", "outgoing"), depth: option(args, "--depth") })); db.close(); break; }
     case "edge-kinds": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(edgeKinds(db, { buildId: option(args, "--build") })); db.close(); break; }
     case "compare-builds": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(compareBuilds(db, args[1], args[2], { limit: option(args, "--limit") })); db.close(); break; }
     case "reach": {
@@ -208,16 +228,16 @@ try {
       const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(listCaptures(db, { buildId: option(args, "--build"), scenario: option(args, "--scenario"), status: option(args, "--status"), limit: option(args, "--limit") })); db.close(); break;
     }
     case "capture-detail": {
-      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(captureDetail(db, args[1])); db.close(); break;
+      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(captureDetail(db, requiredPositional(args, 1, "capture ID"))); db.close(); break;
     }
     case "capture-timeline": {
-      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(captureTimeline(db, args[1], { after: option(args, "--after"), source: option(args, "--source"), kind: option(args, "--kind"), name: option(args, "--name"), limit: option(args, "--limit") })); db.close(); break;
+      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(captureTimeline(db, requiredPositional(args, 1, "capture ID"), { after: option(args, "--after"), source: option(args, "--source"), kind: option(args, "--kind"), name: option(args, "--name"), limit: option(args, "--limit") })); db.close(); break;
     }
     case "capture-compare": {
-      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(compareCaptures(db, args[1], args[2])); db.close(); break;
+      const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(compareCaptures(db, requiredPositional(args, 1, "left capture ID"), requiredPositional(args, 2, "right capture ID"))); db.close(); break;
     }
     case "capture-search": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(captureSearch(db, { q: args[1] ?? "", captureId: option(args, "--capture"), direction: option(args, "--direction"), kind: option(args, "--kind"), limit: option(args, "--limit") })); db.close(); break; }
-    case "capture-graph": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(captureGraph(db, args[1], { kind: option(args, "--kind"), limit: option(args, "--limit") })); db.close(); break; }
+    case "capture-graph": { const db = openEvidenceDb(config.evidenceDb, { readOnly: true }); print(captureGraph(db, requiredPositional(args, 1, "capture ID"), { kind: option(args, "--kind"), limit: option(args, "--limit") })); db.close(); break; }
     case "capture": {
       const lifecycleActions = new Set(["init", "add", "mark", "normalize", "inspect", "verify", "seal", "import", "pack"]);
       const direct = args[1] && !lifecycleActions.has(args[1]);
@@ -316,7 +336,7 @@ try {
     case "doctor": print(doctor(config)); break;
     case "demo": {
       const example = resolve(import.meta.dirname, "../examples/toy-binary/evidence.jsonl");
-      if (args.includes("--reset") && existsSync(config.evidenceDb)) rmSync(config.evidenceDb);
+      if (args.includes("--reset")) for (const path of [config.evidenceDb, `${config.evidenceDb}-wal`, `${config.evidenceDb}-shm`]) rmSync(path, { force: true });
       openEvidenceDb(config.evidenceDb).close();
       print(await ingestFile(config.evidenceDb, example));
       console.error(`Try: hexwitness explain 0x401120 --build toy-v1`);

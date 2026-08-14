@@ -25,6 +25,18 @@ function assertReadableVersion(version, { readOnly = false } = {}) {
   }
 }
 
+function migrateEvidenceSchema(db, existingVersion) {
+  if (existingVersion == null || existingVersion >= 4) return;
+  for (const [name, type] of [["metadata_uuid", "TEXT"], ["metadata_owner", "TEXT"], ["metadata_offset", "INTEGER"]]) {
+    try { db.exec(`ALTER TABLE entities ADD COLUMN ${name} ${type}`); }
+    catch (error) { if (!String(error.message).includes("duplicate column name")) throw error; }
+  }
+  db.exec(`UPDATE entities SET
+    metadata_uuid=COALESCE(json_extract(metadata_json,'$.uuid'),json_extract(metadata_json,'$.guid'),json_extract(metadata_json,'$.type_uuid')),
+    metadata_owner=COALESCE(json_extract(metadata_json,'$.owner'),json_extract(metadata_json,'$.parent'),json_extract(metadata_json,'$.class')),
+    metadata_offset=CASE WHEN json_type(metadata_json,'$.offset') IN ('integer','real') THEN CAST(json_extract(metadata_json,'$.offset') AS INTEGER) ELSE NULL END;`);
+}
+
 export function openEvidenceDb(path, { readOnly = false } = {}) {
   if (!readOnly) ensureParent(path);
   const db = new DatabaseSync(path, { readOnly });
@@ -33,7 +45,9 @@ export function openEvidenceDb(path, { readOnly = false } = {}) {
     assertReadableVersion(existingVersion, { readOnly });
     if (!readOnly) {
       db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;");
+      migrateEvidenceSchema(db, existingVersion);
       db.exec(EVIDENCE_SCHEMA_SQL);
+      db.exec("DROP INDEX IF EXISTS idx_events_capture; DROP INDEX IF EXISTS idx_markers_capture;");
       const ftsReady = db.prepare("SELECT value FROM meta WHERE key='fts_backfill_v1'").get()?.value === "complete";
       if (!ftsReady) {
         db.exec(`DELETE FROM entities_fts;

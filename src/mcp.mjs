@@ -11,7 +11,7 @@ import { openEvidenceDb } from "./db.mjs";
 import { addInvestigationItem, createInvestigation, recordFailedAttempt, recordInvestigationUsage, setInvestigationStatus, updateInvestigationItem } from "./investigations.mjs";
 
 function content(value) {
-  return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
+  return { content: [{ type: "text", text: JSON.stringify(value) }] };
 }
 
 export function createMcpServer(client = new DaemonClient()) {

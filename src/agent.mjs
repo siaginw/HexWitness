@@ -18,7 +18,9 @@ export async function startAgent() {
   async function healthy() {
     try {
       const response = await fetch(new URL("/v1/health", baseUrl), { signal: AbortSignal.timeout(750) });
-      return response.ok;
+      if (!response.ok) return false;
+      const body = await response.json();
+      return body?.ok === true && body?.service === "hexwitness-daemon";
     } catch {
       return false;
     }

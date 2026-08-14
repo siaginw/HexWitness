@@ -22,7 +22,7 @@ For multi-step work, use `hexwitness_investigations` to resume matching work or 
 
 For multi-step investigations, maintain a concise task list and mark evidence lanes complete as they close. Avoid broad database dumps and repeated queries already answered by memory.
 
-For runtime collection, require exact build identity plus bidirectional wire, semantic events, timestamped markers, screen recording, and context. Normalize, seal, verify, then reason from the capture. Treat a missing baseline as a failed capture unless exploratory evidence was explicitly requested.
+For runtime collection, require exact build identity plus bidirectional wire, semantic events, timestamped markers, screen recording, and context. Preserve every event's original UTC timestamp. Normalize, seal, verify, then reason from the capture. Never rewrite a sealed pack or compare different builds. Treat a missing baseline as a failed capture unless exploratory evidence was explicitly requested.
 
 ## Runtime contract
 

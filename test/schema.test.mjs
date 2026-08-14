@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 import Ajv2020 from "ajv/dist/2020.js";
+import { RECORD_REQUIRED_FIELDS } from "../src/records.mjs";
 
 test("public JSON Schema accepts the complete synthetic interchange fixture", () => {
   const schema = JSON.parse(readFileSync(resolve(import.meta.dirname, "../schemas/hexwitness-jsonl-v1.schema.json"), "utf8"));
@@ -30,4 +31,14 @@ test("capture, scenario, and extended evidence schemas validate their public con
   assert.equal(ajv.compile(captureSchema)({ schema: "hexwitness-capture-pack-v1", schema_version: 1, capture_id: "cap", scenario: "test", status: "active", quality: "pending", build_id: "b", started_utc: "2026-01-01T00:00:00.000Z", required_roles: [], artifacts: [], markers: [] }), true);
   assert.equal(ajv.compile(scenarioSchema)({ schema: "hexwitness-scenario-v1", id: "roundtrip", title: "Roundtrip", required_roles: [], steps: [{ id: "send", instruction: "Send one request" }] }), true);
   assert.equal(ajv.compile(captureInputSchema)({ schema: "hexwitness-capture-input-v1", scenario: "roundtrip", build_id: "b", markers: [{ name: "send", ts_utc: "2026-01-01T00:00:00.000Z" }] }), true);
+});
+
+test("runtime validator required fields stay aligned with the public JSON Schema", () => {
+  const schema = JSON.parse(readFileSync(resolve(import.meta.dirname, "../schemas/hexwitness-jsonl-v1.schema.json"), "utf8"));
+  const schemaRequired = new Map(schema.allOf.map((entry) => [entry.if.properties.record.const, new Set(entry.then.required ?? [])]));
+  for (const [record, runtimeFields] of Object.entries(RECORD_REQUIRED_FIELDS)) {
+    const expected = new Set(runtimeFields);
+    if (record === "claim") expected.add("object");
+    assert.deepEqual(schemaRequired.get(record), expected, `${record} required fields drifted`);
+  }
 });

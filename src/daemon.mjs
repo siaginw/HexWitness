@@ -17,16 +17,29 @@ import { getPlaybook, listPlaybooks } from "./playbooks.mjs";
 import { challengeEvidence, investigationDetail, investigationReport, listFailedAttempts, listInvestigations } from "./investigations.mjs";
 import { discover, discoveryContext } from "./discovery.mjs";
 import { dashboardHtml } from "./dashboard.mjs";
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 
 function send(response, status, body) {
-  const payload = JSON.stringify(body, null, 2);
+  const payload = JSON.stringify(body);
   response.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
     "content-length": Buffer.byteLength(payload),
     "cache-control": "no-store",
+    "x-content-type-options": "nosniff",
   });
   response.end(payload);
+}
+
+function loopbackHost(value) {
+  if (!value) return false;
+  try { return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(new URL(`http://${value}`).hostname); }
+  catch { return false; }
+}
+
+function bearerMatches(header, token) {
+  const actual = Buffer.from(String(header ?? ""));
+  const expected = Buffer.from(`Bearer ${token}`);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
 function sendHtml(response, body, nonce) {
@@ -59,6 +72,17 @@ export function startDaemon(overrides = {}) {
   const activity = new ActivityLog(config.activityDb, { enabled: config.activityLog, retentionDays: config.retentionDays });
   activity.purge();
   const startedAt = new Date().toISOString();
+  const statsTtlMs = Math.max(1000, Math.min(Number(overrides.statsTtlMs ?? 30_000), 300_000));
+  let statsCache = null;
+  let statsCachedAt = 0;
+  const cachedStats = () => {
+    const now = performance.now();
+    if (!statsCache || now - statsCachedAt >= statsTtlMs) {
+      statsCache = stats(db);
+      statsCachedAt = now;
+    }
+    return statsCache;
+  };
   const routes = [
     "/v1/health", "/v1/contract", "/v1/routes", "/v1/memory", "/v1/builds", "/v1/builds/compare", "/v1/stats", "/v1/search", "/v1/query", "/v1/explain",
     "/v1/gaps", "/v1/gaps/worklist", "/v1/coverage", "/v1/guide/dump", "/v1/callers", "/v1/callees",
@@ -80,7 +104,8 @@ export function startDaemon(overrides = {}) {
     let result;
     try {
       if (request.method !== "GET") { status = "method_not_allowed"; return send(response, 405, { error: "read-only daemon; use hexwitness ingest locally" }); }
-      if (config.apiToken && request.headers.authorization !== `Bearer ${config.apiToken}`) { status = "unauthorized"; return send(response, 401, { error: "unauthorized" }); }
+      if (["127.0.0.1", "localhost", "::1"].includes(config.host) && !loopbackHost(request.headers.host)) { status = "forbidden_host"; return send(response, 403, { error: "invalid Host header" }); }
+      if (config.apiToken && !bearerMatches(request.headers.authorization, config.apiToken)) { status = "unauthorized"; return send(response, 401, { error: "unauthorized" }); }
       if (url.pathname === "/dashboard") {
         if (!["127.0.0.1", "localhost", "::1"].includes(config.host)) return send(response, 403, { error: "dashboard is loopback-only" });
         const nonce = randomBytes(18).toString("base64url"); status = "dashboard"; return sendHtml(response, dashboardHtml(nonce), nonce);
@@ -88,14 +113,14 @@ export function startDaemon(overrides = {}) {
       switch (url.pathname) {
         case "/":
         case "/v1/health":
-          result = { ok: true, service: "hexwitness-daemon", version: VERSION, started_utc: startedAt, database: { file: basename(config.evidenceDb), read_only: true }, stats: stats(db) };
+          result = { ok: true, service: "hexwitness-daemon", version: VERSION, started_utc: startedAt, database: { file: basename(config.evidenceDb), read_only: true }, stats: cachedStats() };
           break;
         case "/v1/builds": result = listBuilds(db); break;
         case "/v1/contract": result = publicContract(); break;
         case "/v1/builds/compare": result = compareBuilds(db, url.searchParams.get("left"), url.searchParams.get("right"), { limit: url.searchParams.get("limit") }); break;
         case "/v1/routes": result = { version: VERSION, read_only: true, routes }; break;
-        case "/v1/memory": result = { ...memoryStatus(db), activity: activity.summary(10) }; break;
-        case "/v1/stats": result = stats(db); break;
+        case "/v1/memory": result = { ...memoryStatus(db, { counts: cachedStats() }), activity: activity.summary(10) }; break;
+        case "/v1/stats": result = cachedStats(); break;
         case "/v1/search":
           result = search(db, { q: url.searchParams.get("q"), buildId: url.searchParams.get("build_id"), kind: url.searchParams.get("kind"), limit: url.searchParams.get("limit") });
           break;

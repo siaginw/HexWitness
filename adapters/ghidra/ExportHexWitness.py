@@ -94,6 +94,54 @@ try:
                 "target_address": "0x" + callee.getEntryPoint().toString()
             })
 
+    reference_manager = currentProgram.getReferenceManager()
+    function_manager = currentProgram.getFunctionManager()
+    defined_data = currentProgram.getListing().getDefinedData(True)
+    while defined_data.hasNext():
+        data = defined_data.next()
+        if not data.hasStringValue():
+            continue
+        address = data.getAddress()
+        key = "str:0x" + address.toString()
+        emit(stream, "entity", {
+            "build_id": build_id, "kind": "string", "stable_key": key,
+            "name": str(data.getValue()), "address": "0x" + address.toString(),
+            "size": int(data.getLength()), "metadata": {"data_type": data.getDataType().getDisplayName()}
+        })
+        for reference in reference_manager.getReferencesTo(address):
+            owner = function_manager.getFunctionContaining(reference.getFromAddress())
+            if owner:
+                emit(stream, "edge", {
+                    "build_id": build_id, "kind": "references",
+                    "source": "fn:0x" + owner.getEntryPoint().toString(), "target": key,
+                    "source_address": "0x" + reference.getFromAddress().toString(),
+                    "target_address": "0x" + address.toString()
+                })
+
+    external_symbols = currentProgram.getSymbolTable().getExternalSymbols()
+    while external_symbols.hasNext():
+        symbol = external_symbols.next()
+        name = symbol.getName(True)
+        emit(stream, "entity", {
+            "build_id": build_id, "kind": "import", "stable_key": "import:" + name,
+            "name": name, "metadata": {"source": "external-symbol"}
+        })
+
+    for function in functions:
+        target = function.getEntryPoint()
+        target_key = "fn:0x" + target.toString()
+        for reference in reference_manager.getReferencesTo(target):
+            if reference.getReferenceType().isCall():
+                continue
+            owner = function_manager.getFunctionContaining(reference.getFromAddress())
+            if owner and owner.getEntryPoint() != target:
+                emit(stream, "edge", {
+                    "build_id": build_id, "kind": "code_reference",
+                    "source": "fn:0x" + owner.getEntryPoint().toString(), "target": target_key,
+                    "source_address": "0x" + reference.getFromAddress().toString(),
+                    "target_address": "0x" + target.toString()
+                })
+
     data_manager = currentProgram.getDataTypeManager()
     data_types = data_manager.getAllDataTypes()
     while data_types.hasNext():

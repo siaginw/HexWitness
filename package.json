@@ -1,6 +1,6 @@
 {
   "name": "hexwitness",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "mcpName": "io.github.siaginw/hexwitness",
   "description": "Evidence-first reverse-engineering workbench for humans and AI agents",
   "author": {
@@ -78,6 +78,7 @@
     "test:package": "node scripts/smoke-package.mjs",
     "test:upgrade": "node scripts/smoke-upgrade.mjs",
     "test:load": "node scripts/load-test.mjs",
+    "test:scale": "node scripts/import-scale-test.mjs",
     "release:check": "node scripts/check-release-version.mjs",
     "public:audit": "node scripts/public-audit.mjs",
     "pack:dry": "npm pack --dry-run"

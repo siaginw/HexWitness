@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS entities(
   namespace TEXT,
   signature TEXT,
   decompiler TEXT,
+  metadata_uuid TEXT,
+  metadata_owner TEXT,
+  metadata_offset INTEGER,
   metadata_json TEXT NOT NULL DEFAULT '{}',
   UNIQUE(build_id, stable_key),
   FOREIGN KEY(build_id) REFERENCES builds(build_id) ON DELETE CASCADE
@@ -291,20 +294,25 @@ CREATE TABLE IF NOT EXISTS import_runs(
 CREATE INDEX IF NOT EXISTS idx_entities_build_address ON entities(build_id, address);
 CREATE INDEX IF NOT EXISTS idx_entities_build_name ON entities(build_id, name);
 CREATE INDEX IF NOT EXISTS idx_entities_kind ON entities(kind);
+CREATE INDEX IF NOT EXISTS idx_entities_build_kind_address ON entities(build_id,kind,address);
+CREATE INDEX IF NOT EXISTS idx_entities_metadata_uuid ON entities(build_id,metadata_uuid COLLATE NOCASE) WHERE metadata_uuid IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_entities_metadata_owner_offset ON entities(build_id,metadata_owner,metadata_offset) WHERE metadata_owner IS NOT NULL OR metadata_offset IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_edges_source ON edges(build_id, source_entity_id);
 CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(build_id, target_entity_id);
 CREATE INDEX IF NOT EXISTS idx_edges_source_key ON edges(build_id, source_key);
 CREATE INDEX IF NOT EXISTS idx_edges_target_key ON edges(build_id, target_key);
+CREATE INDEX IF NOT EXISTS idx_edges_unresolved_source ON edges(build_id,source_key) WHERE source_entity_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_edges_unresolved_target ON edges(build_id,target_key) WHERE target_entity_id IS NULL;
 CREATE INDEX IF NOT EXISTS idx_evidence_build ON evidence(build_id, observed_utc);
 CREATE INDEX IF NOT EXISTS idx_claims_subject ON claims(build_id, subject, predicate);
-CREATE INDEX IF NOT EXISTS idx_events_capture ON events(capture_id, ordinal);
 CREATE INDEX IF NOT EXISTS idx_events_address ON events(address);
 CREATE INDEX IF NOT EXISTS idx_events_kind_name ON events(capture_id,kind,name);
 CREATE INDEX IF NOT EXISTS idx_capture_artifacts_role ON capture_artifacts(capture_id,role);
-CREATE INDEX IF NOT EXISTS idx_markers_capture ON markers(capture_id,ordinal);
 CREATE INDEX IF NOT EXISTS idx_relationships_capture ON relationships(capture_id,kind);
 CREATE INDEX IF NOT EXISTS idx_slices_entity ON analysis_slices(build_id,entity_key,kind);
 CREATE INDEX IF NOT EXISTS idx_gaps_status ON gaps(status,priority,updated_utc);
+CREATE INDEX IF NOT EXISTS idx_captures_build ON captures(build_id);
+CREATE INDEX IF NOT EXISTS idx_gaps_build_status ON gaps(build_id,status,priority,updated_utc);
 CREATE INDEX IF NOT EXISTS idx_investigations_build_status ON investigations(build_id,status,priority,updated_utc);
 CREATE INDEX IF NOT EXISTS idx_investigation_items_kind ON investigation_items(investigation_id,kind,status);
 CREATE INDEX IF NOT EXISTS idx_failed_attempts_scope ON failed_attempts(build_id,investigation_id,observed_utc);

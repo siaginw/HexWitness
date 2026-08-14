@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { request } from "node:http";
 import test from "node:test";
 import { ingestFile } from "../src/ingest.mjs";
 import { startDaemon } from "../src/daemon.mjs";
@@ -20,6 +21,14 @@ test("daemon serves read-only evidence queries and records safe activity", async
     const health = await fetch(`http://127.0.0.1:${port}/v1/health`).then((response) => response.json());
     assert.equal(health.ok, true);
     assert.equal(health.stats.entities, 4);
+
+    const reboundStatus = await new Promise((resolveStatus, reject) => {
+      const probe = request({ host: "127.0.0.1", port, path: "/v1/health", headers: { host: "evidence.example" } }, (response) => {
+        response.resume(); response.once("end", () => resolveStatus(response.statusCode));
+      });
+      probe.once("error", reject); probe.end();
+    });
+    assert.equal(reboundStatus, 403);
 
     const dossier = await fetch(`http://127.0.0.1:${port}/v1/explain?build_id=toy-v1&address=0x401120`).then((response) => response.json());
     assert.equal(dossier.entity.name, "dispatch_request");
