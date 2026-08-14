@@ -44,9 +44,13 @@ Live viewer calls are not silently cached. Promotion is explicit—export a boun
 
 Reverse-engineering evidence is local, relational, highly queryable, and usually read-heavy. SQLite provides transactions, indexes, portable single-file storage, and simple backup without operating a separate database service. The interchange format prevents lock-in: rebuild the index from JSONL exports at any time.
 
-Entity and normalized-event text use FTS5 indexes. A cross-record discovery index covers entities, evidence, claims, capture events, investigations, and failed attempts. Discovery results carry no factual authority; they point agents to exact records. One-time migration backfills existing databases; triggers maintain indexes.
+Entity and normalized-event text use FTS5 indexes. UUID, field-owner, and field-offset metadata are promoted into indexed columns while the full metadata document remains intact. A cross-record discovery index covers entities, evidence, claims, capture events, investigations, and failed attempts. Discovery results carry no factual authority; they point agents to exact records. One-time migration backfills existing databases; triggers maintain indexes.
 
-Schema changes are versioned. Current schema 3 adds durable investigations, failed-attempt memory, operation usage, and cross-record discovery. Migrations require a writable open, retain imported evidence, and reject future schema versions without mutation. Read-only services refuse a database that still needs migration. `hexwitness backup OUTPUT` creates and integrity-checks a consistent SQLite snapshot before an upgrade.
+Schema changes are versioned. Schema 3 added durable investigations; current schema 4 adds indexed hot metadata and large-corpus query indexes. Migrations require a writable open, retain imported evidence and provenance links, and reject future schema versions without mutation. Read-only services refuse a database that still needs migration. `hexwitness backup OUTPUT` creates and integrity-checks a consistent SQLite snapshot before an upgrade.
+
+Imports use one streaming atomic transaction: records are validated and applied line by line, then unresolved edges are backfilled before commit. Capture normalization uses a temporary on-disk ordering index and a buffered JSONL writer, so long traces do not require retaining every event or output record in memory.
+
+The read-only daemon caches exact table counts for 30 seconds. Evidence queries remain live; only health/stat summaries can trail an external writer briefly. This prevents every agent startup from rescanning the largest tables.
 
 ## Stable identity
 

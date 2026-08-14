@@ -35,7 +35,8 @@ export function canonicalAddress(value) {
     return `0x${value.toString(16)}`;
   }
   const text = String(value).trim().toLowerCase().replaceAll("_", "");
-  const parsed = text.startsWith("0x") ? BigInt(text) : BigInt(text);
+  if (/^0[0-9]+$/.test(text) && text !== "0") throw new Error(`ambiguous address requires 0x prefix: ${value}`);
+  const parsed = BigInt(text);
   if (parsed < 0n) throw new Error(`negative address: ${value}`);
   return `0x${parsed.toString(16)}`;
 }

@@ -1,8 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import { basename, delimiter, extname, isAbsolute, relative, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { nowUtc } from "./util.mjs";
+import { hashFileStreaming } from "./file-io.mjs";
 
 function inside(root, candidate) {
   const rel = relative(root, candidate);
@@ -28,7 +29,7 @@ function findExecutable(name, base = process.cwd()) {
 }
 
 function fileSha256(path) {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
+  return hashFileStreaming(path);
 }
 
 function scrubbedEnvironment() {

@@ -57,21 +57,23 @@ def export(view):
                           name=function.name, address=hex(function.start),
                           size=max(0, function.highest_address - function.start),
                           signature=str(function.function_type))
-            if include_decomp and function.hlil is not None:
-                fields["decompiler"] = str(function.hlil)
             emit(stream, "entity", **fields)
             if include_decomp and function.hlil is not None:
                 emit(stream, "slice", build_id=build_id, entity_key=stable_key, kind="hlil",
                      start_address=hex(function.start), end_address=hex(function.highest_address),
                      text=str(function.hlil), metadata={"tool": "binary-ninja"})
-            for index, block in enumerate(function.basic_blocks):
+            blocks = list(function.basic_blocks)
+            block_indexes = {block.start: index for index, block in enumerate(blocks)}
+            for index, block in enumerate(blocks):
                 block_key = "bb:%s:%d" % (hex(function.start), index)
                 emit(stream, "entity", build_id=build_id, kind="basic_block", stable_key=block_key,
                      name="%s:block_%d" % (function.name, index), address=hex(block.start),
                      size=max(0, block.end - block.start), metadata={"function": stable_key, "index": index})
                 emit(stream, "edge", build_id=build_id, kind="contains", source=stable_key, target=block_key)
                 for outgoing in block.outgoing_edges:
-                    target_index = list(function.basic_blocks).index(outgoing.target)
+                    target_index = block_indexes.get(outgoing.target.start)
+                    if target_index is None:
+                        continue
                     emit(stream, "edge", build_id=build_id, kind="control_flow", source=block_key,
                          target="bb:%s:%d" % (hex(function.start), target_index),
                          metadata={"branch_type": str(outgoing.type)})

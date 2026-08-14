@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -16,11 +17,13 @@ async function freePort() {
 }
 
 test("agent entrypoint autostarts an empty local daemon and serves MCP", async () => {
+  const entry = resolve(import.meta.dirname, "../dist/hexwitness.mjs");
+  if (!existsSync(entry)) execFileSync(process.execPath, [resolve(import.meta.dirname, "../scripts/build.mjs")], { stdio: "inherit" });
   const root = mkdtempSync(join(tmpdir(), "hexwitness-agent-"));
   const port = await freePort();
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [resolve(import.meta.dirname, "../dist/hexwitness.mjs"), "agent"],
+    args: [entry, "agent"],
     env: {
       ...process.env,
       HEXWITNESS_HOME: root,
@@ -34,7 +37,7 @@ test("agent entrypoint autostarts an empty local daemon and serves MCP", async (
   try {
     await client.connect(transport);
     const health = await client.callTool({ name: "hexwitness_health", arguments: {} });
-    assert.match(health.content[0].text, /"ok": true/);
+    assert.equal(JSON.parse(health.content[0].text).ok, true);
     const memory = await client.callTool({ name: "hexwitness_memory_status", arguments: {} });
     assert.match(memory.content[0].text, /durable-evidence-first/);
   } finally {

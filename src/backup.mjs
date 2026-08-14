@@ -1,9 +1,9 @@
-import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { openEvidenceDb } from "./db.mjs";
 import { ensureParent, nowUtc } from "./util.mjs";
+import { hashFileStreaming } from "./file-io.mjs";
 
 function sqlString(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
@@ -27,14 +27,13 @@ export function backupEvidenceDb(sourcePath, outputPath) {
     if (integrity !== "ok") throw new Error(`backup integrity check failed: ${integrity ?? "unknown"}`);
   } finally { verification.close(); }
 
-  const bytes = readFileSync(output);
   return {
     ok: true,
     source,
     output,
     created_utc: nowUtc(),
     size_bytes: statSync(output).size,
-    sha256: createHash("sha256").update(bytes).digest("hex"),
+    sha256: hashFileStreaming(output),
     integrity: "ok",
   };
 }

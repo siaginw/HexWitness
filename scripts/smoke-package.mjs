@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -53,6 +53,11 @@ try {
   if (version.status !== 0 || version.stdout.trim() !== packageJson.version) throw new Error(`installed version mismatch: ${version.stdout || version.stderr}`);
   const adapters = spawnSync(process.execPath, [cli, "adapters"], { encoding: "utf8" });
   if (adapters.status !== 0 || JSON.parse(adapters.stdout).adapters.length < 5) throw new Error(`installed adapters are not discoverable: ${adapters.stderr || adapters.stdout}`);
+  const fridaInput = join(scratch, "frida.jsonl");
+  const fridaOutput = join(scratch, "frida-normalized.jsonl");
+  writeFileSync(fridaInput, `${JSON.stringify({ ts_utc: "2026-01-01T00:00:00.000Z", name: "fixture", packet: "private", fields: { safe: true } })}\n`);
+  const frida = spawnSync(process.execPath, [join(installedRoot, "adapters", "frida-jsonl", "normalize.mjs"), fridaInput, fridaOutput, "build", "capture"], { encoding: "utf8" });
+  if (frida.status !== 0 || !readFileSync(fridaOutput, "utf8").includes('"safe":true')) throw new Error(`installed Frida normalizer failed: ${frida.stderr || frida.stdout}`);
   const setup = spawnSync(process.execPath, [cli, "setup",
     "--client", "codex,claude-code,cursor,vscode,claude-desktop,generic", "--viewer", "none", "--output", join(scratch, "mcp.json"), "--dry-run", "--yes", "--json"], { encoding: "utf8" });
   if (setup.status !== 0) throw new Error(setup.stderr || setup.stdout || "installed setup wizard failed");

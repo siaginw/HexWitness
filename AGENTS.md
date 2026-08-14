@@ -19,6 +19,7 @@ HexWitness is an evidence index, not an oracle. Follow this sequence whenever in
 15. A live viewer result is provisional until a build-scoped exporter record is ingested and the result can be reconstructed from HexWitness alone.
 16. Local analysis tools are agent-callable. Check `hexwitness_local_tool_status`, use `hexwitness_run_local_tool` only for the smallest necessary command, never pass secrets, and treat its output as an observation until independently promoted.
 17. Diagnose Binary Ninja, IDA, Ghidra, and Frida through `hexwitness_adapter_diagnostics`. The user's AI host owns provider authentication; never request model API keys through HexWitness.
+18. Runtime events must retain their original ISO-8601 UTC timestamps. Never fabricate event time, rewrite a sealed capture, or compare captures from different builds.
 
 Never infer that two builds share addresses. Never treat a function name from one build as proof for another build. Never expose private payload bytes or credentials in claims, issues, commits, or chat.
 

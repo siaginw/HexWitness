@@ -183,7 +183,7 @@
     },
     {
       "if": { "properties": { "record": { "const": "gap" } }, "required": ["record"] },
-      "then": { "required": ["subject", "objective"], "properties": {
+      "then": { "required": ["build_id", "subject", "objective"], "properties": {
         "capture_id": { "type": "string" }, "subject": { "type": "string" }, "objective": { "type": "string" },
         "status": { "type": "string" }, "priority": { "type": "integer", "minimum": 0, "maximum": 4 },
         "missing": { "type": "array" }, "recommendation": { "type": "string" }

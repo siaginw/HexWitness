@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0 — 2026-08-14
+
+- Made JSONL ingest atomic and streaming, and moved capture normalization to a bounded-memory disk-backed ordering pass.
+- Streamed hashing/counting for captures, database backups, imports, and local-tool receipts instead of loading large artifacts into memory.
+- Added schema 4 hot-metadata columns and indexes for UUID, owner, and field-offset queries; added missing build/worklist indexes and unresolved-edge partial indexes.
+- Removed graph-traversal N+1 entity lookups, quadratic queues, repeated edge statement compilation, and generic-query per-entity edge queries.
+- Cached daemon health statistics briefly and compacted REST/MCP JSON to reduce repeated full-table work, bytes, and agent token use.
+- Closed fail-open boundaries: bounded MCP daemon calls, exact daemon identity checks, loopback Host validation, constant-time bearer comparison, same-build capture comparisons, objective validation, and unambiguous address parsing.
+- Unified Frida sanitization, expanded secret/payload key coverage, rejected synthetic timestamps, and made sealed normalized evidence immutable.
+- Preserved evidence links during re-ingest, cleaned demo WAL/SHM sidecars, aligned runtime/schema required fields, and fixed source-checkout test ergonomics.
+- Expanded IDA and Ghidra evidence parity, removed duplicated Binary Ninja decompilation output, fixed large-function block indexing, and updated the Frida 17 export lookup API.
+
 ## 1.1.0 — 2026-08-13
 
 - Added durable build-bound investigations, deterministic playbooks, operation budgets, completion gates, and failed-attempt memory.

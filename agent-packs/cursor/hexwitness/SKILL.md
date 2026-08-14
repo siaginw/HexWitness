@@ -17,7 +17,7 @@ Work from evidence, not codebase-wide guesses.
 
 For multi-step work, use `hexwitness_investigations` to resume matching work or `hexwitness_investigation_create` with a deterministic playbook, then maintain item/status/usage state. Inspect `hexwitness_failed_attempts` and run `hexwitness_evidence_challenge` before completion. Treat retrieval as discovery-only and open the exact record it names. Local analysis tools are agent-callable through `hexwitness_local_tool_status` and `hexwitness_run_local_tool`; never pass credentials and never convert output directly into a claim. Diagnose viewer/runtime setup through `hexwitness_adapter_diagnostics`; Cursor owns model authentication.
 
-New runtime captures require exact build identity, bidirectional wire, semantic events, timestamped markers, screen recording, and context. Normalize, seal, and verify them before analysis; reject missing baseline evidence by default.
+New runtime captures require exact build identity, bidirectional wire, semantic events, timestamped markers, screen recording, and context. Preserve every event's original UTC timestamp. Normalize, seal, and verify before analysis; never rewrite a sealed pack or compare different builds. Reject missing baseline evidence by default.
 
 ## Runtime contract
 

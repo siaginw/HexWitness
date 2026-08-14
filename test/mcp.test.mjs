@@ -34,7 +34,7 @@ test("MCP publishes the agent-first evidence vocabulary", async () => {
       assert.equal(names.has(expected), true, `missing ${expected}`);
     }
     const health = await client.callTool({ name: "hexwitness_health", arguments: {} });
-    assert.match(health.content[0].text, /"ok": true/);
+    assert.equal(JSON.parse(health.content[0].text).ok, true);
     const contract = await client.callTool({ name: "hexwitness_contract", arguments: {} });
     assert.match(contract.content[0].text, /stable-1.x/);
 

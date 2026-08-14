@@ -1,13 +1,22 @@
-import { createHash } from "node:crypto";
-import { createReadStream, readFileSync } from "node:fs";
+import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 import { resolve } from "node:path";
 import { FORMAT } from "./constants.mjs";
 import { openEvidenceDb, transaction } from "./db.mjs";
 import { validateRecord } from "./records.mjs";
 import { json, newId, nowUtc, stableId } from "./util.mjs";
+import { hashFileStreaming } from "./file-io.mjs";
 
 const INVESTIGATION_REFS = Object.freeze({ entity: ["entities", "entity_id"], evidence: ["evidence", "evidence_id"], claim: ["claims", "claim_id"], gap: ["gaps", "gap_id"], capture: ["captures", "capture_id"], attempt: ["failed_attempts", "attempt_id"] });
+const STATEMENT_CACHE = new WeakMap();
+
+function prepared(db, sql) {
+  let statements = STATEMENT_CACHE.get(db);
+  if (!statements) { statements = new Map(); STATEMENT_CACHE.set(db, statements); }
+  let statement = statements.get(sql);
+  if (!statement) { statement = db.prepare(sql); statements.set(sql, statement); }
+  return statement;
+}
 
 function investigationBuild(db, investigationId) {
   const row = db.prepare("SELECT build_id FROM investigations WHERE investigation_id=?").get(investigationId);
@@ -25,14 +34,14 @@ function validateInvestigationRef(db, buildId, kind, refId) {
 }
 
 function resolveEntityId(db, buildId, stableKey) {
-  return db.prepare("SELECT entity_id FROM entities WHERE build_id=? AND stable_key=?").get(buildId, stableKey)?.entity_id ?? null;
+  return prepared(db, "SELECT entity_id FROM entities WHERE build_id=? AND stable_key=?").get(buildId, stableKey)?.entity_id ?? null;
 }
 
 export function applyRecord(db, record) {
   const metadata = json(record.metadata);
   switch (record.record) {
     case "build": {
-      db.prepare(`INSERT INTO builds(build_id,label,sha256,architecture,image_base,tool,tool_version,created_utc,metadata_json)
+      prepared(db, `INSERT INTO builds(build_id,label,sha256,architecture,image_base,tool,tool_version,created_utc,metadata_json)
         VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(build_id) DO UPDATE SET
         label=excluded.label, sha256=COALESCE(excluded.sha256,builds.sha256), architecture=COALESCE(excluded.architecture,builds.architecture),
         image_base=COALESCE(excluded.image_base,builds.image_base), tool=COALESCE(excluded.tool,builds.tool),
@@ -44,21 +53,26 @@ export function applyRecord(db, record) {
     }
     case "artifact": {
       const id = record.artifact_id ?? stableId("artifact", record.build_id, record.role, record.sha256, record.path_hint);
-      db.prepare(`INSERT OR REPLACE INTO artifacts(artifact_id,build_id,role,path_hint,sha256,size_bytes,metadata_json) VALUES(?,?,?,?,?,?,?)`).run(
+      prepared(db, `INSERT OR REPLACE INTO artifacts(artifact_id,build_id,role,path_hint,sha256,size_bytes,metadata_json) VALUES(?,?,?,?,?,?,?)`).run(
         id, record.build_id, record.role, record.path_hint ?? null, record.sha256 ?? null, record.size_bytes ?? null, metadata,
       );
       return;
     }
     case "entity": {
       const id = record.entity_id ?? stableId("entity", record.build_id, record.stable_key);
-      db.prepare(`INSERT INTO entities(entity_id,build_id,kind,stable_key,name,address,size,namespace,signature,decompiler,metadata_json)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(build_id,stable_key) DO UPDATE SET
+      const metadataUuid = record.metadata?.uuid ?? record.metadata?.guid ?? record.metadata?.type_uuid ?? null;
+      const metadataOwner = record.metadata?.owner ?? record.metadata?.parent ?? record.metadata?.class ?? null;
+      const metadataOffset = record.metadata?.offset != null && Number.isFinite(Number(record.metadata.offset)) ? Number(record.metadata.offset) : null;
+      prepared(db, `INSERT INTO entities(entity_id,build_id,kind,stable_key,name,address,size,namespace,signature,decompiler,metadata_uuid,metadata_owner,metadata_offset,metadata_json)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(build_id,stable_key) DO UPDATE SET
         kind=excluded.kind, name=COALESCE(excluded.name,entities.name), address=COALESCE(excluded.address,entities.address),
         size=COALESCE(excluded.size,entities.size), namespace=COALESCE(excluded.namespace,entities.namespace),
         signature=COALESCE(excluded.signature,entities.signature), decompiler=COALESCE(excluded.decompiler,entities.decompiler),
+        metadata_uuid=excluded.metadata_uuid,metadata_owner=excluded.metadata_owner,metadata_offset=excluded.metadata_offset,
         metadata_json=excluded.metadata_json`).run(
         id, record.build_id, record.kind, record.stable_key, record.name ?? null, record.address ?? null,
-        record.size ?? null, record.namespace ?? null, record.signature ?? null, record.decompiler ?? null, metadata,
+        record.size ?? null, record.namespace ?? null, record.signature ?? null, record.decompiler ?? null,
+        metadataUuid == null ? null : String(metadataUuid), metadataOwner == null ? null : String(metadataOwner), metadataOffset, metadata,
       );
       return;
     }
@@ -66,20 +80,23 @@ export function applyRecord(db, record) {
       const source = resolveEntityId(db, record.build_id, record.source);
       const target = resolveEntityId(db, record.build_id, record.target);
       const id = record.edge_id ?? stableId("edge", record.build_id, record.kind, record.source, record.target, record.source_address, record.target_address);
-      db.prepare(`INSERT OR REPLACE INTO edges(edge_id,build_id,kind,source_key,target_key,source_entity_id,target_entity_id,source_address,target_address,metadata_json)
+      prepared(db, `INSERT OR REPLACE INTO edges(edge_id,build_id,kind,source_key,target_key,source_entity_id,target_entity_id,source_address,target_address,metadata_json)
         VALUES(?,?,?,?,?,?,?,?,?,?)`).run(id, record.build_id, record.kind, record.source, record.target, source, target, record.source_address ?? null, record.target_address ?? null, metadata);
       return;
     }
     case "evidence": {
       const id = record.evidence_id ?? stableId("evidence", record.build_id, record.source, record.source_ref, record.summary);
-      db.prepare(`INSERT OR REPLACE INTO evidence(evidence_id,build_id,source,source_ref,observed_utc,confidence,classification,summary,payload_sha256,metadata_json)
-        VALUES(?,?,?,?,?,?,?,?,?,?)`).run(
+      prepared(db, `INSERT INTO evidence(evidence_id,build_id,source,source_ref,observed_utc,confidence,classification,summary,payload_sha256,metadata_json)
+        VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(evidence_id) DO UPDATE SET
+        build_id=excluded.build_id,source=excluded.source,source_ref=excluded.source_ref,observed_utc=excluded.observed_utc,
+        confidence=excluded.confidence,classification=excluded.classification,summary=excluded.summary,
+        payload_sha256=excluded.payload_sha256,metadata_json=excluded.metadata_json`).run(
         id, record.build_id ?? null, record.source, record.source_ref, record.observed_utc ?? nowUtc(), record.confidence,
         record.classification ?? "derived", record.summary, record.payload_sha256 ?? null, metadata,
       );
       for (const stableKey of record.entities ?? []) {
         const entityId = resolveEntityId(db, record.build_id, stableKey);
-        if (entityId) db.prepare("INSERT OR REPLACE INTO entity_evidence(entity_id,evidence_id,relation) VALUES(?,?,?)").run(entityId, id, record.relation ?? "supports");
+        if (entityId) prepared(db, "INSERT OR REPLACE INTO entity_evidence(entity_id,evidence_id,relation) VALUES(?,?,?)").run(entityId, id, record.relation ?? "supports");
       }
       return;
     }
@@ -105,7 +122,7 @@ export function applyRecord(db, record) {
     }
     case "event": {
       const id = record.event_id ?? stableId("event", record.capture_id, record.ordinal, record.source, record.name);
-      db.prepare(`INSERT OR REPLACE INTO events(event_id,capture_id,ordinal,ts_utc,source,kind,name,direction,address,thread_id,body_len,body_sha256,confidence,action_id,summary,fields_json)
+      prepared(db, `INSERT OR REPLACE INTO events(event_id,capture_id,ordinal,ts_utc,source,kind,name,direction,address,thread_id,body_len,body_sha256,confidence,action_id,summary,fields_json)
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(id, record.capture_id, record.ordinal, record.ts_utc ?? null,
         record.source, record.kind, record.name, record.direction ?? null, record.address ?? null, record.thread_id ?? null,
         record.body_len ?? null, record.body_sha256 ?? null, record.confidence, record.action_id ?? null,
@@ -134,7 +151,7 @@ export function applyRecord(db, record) {
     }
     case "slice": {
       const id = record.slice_id ?? stableId("slice", record.build_id, record.entity_key, record.kind, record.start_address, record.end_address);
-      db.prepare(`INSERT OR REPLACE INTO analysis_slices(slice_id,build_id,entity_key,kind,start_address,end_address,text,operations_json,metadata_json)
+      prepared(db, `INSERT OR REPLACE INTO analysis_slices(slice_id,build_id,entity_key,kind,start_address,end_address,text,operations_json,metadata_json)
         VALUES(?,?,?,?,?,?,?,?,?)`).run(id, record.build_id, record.entity_key, record.kind, record.start_address ?? null,
         record.end_address ?? null, record.text ?? null, json(record.operations ?? []), metadata);
       return;
@@ -195,16 +212,12 @@ export function applyRecord(db, record) {
 export function ingestRecords(db, records) {
   transaction(db, () => {
     for (const input of records) applyRecord(db, validateRecord(input));
-    db.exec(`UPDATE edges SET source_entity_id=(SELECT entity_id FROM entities WHERE entities.build_id=edges.build_id AND entities.stable_key=edges.source_key)
-      WHERE source_entity_id IS NULL;
-      UPDATE edges SET target_entity_id=(SELECT entity_id FROM entities WHERE entities.build_id=edges.build_id AND entities.stable_key=edges.target_key)
-      WHERE target_entity_id IS NULL;`);
+    backfillUnresolvedEdges(db);
   });
   return records.length;
 }
 
-export async function readJsonl(path) {
-  const records = [];
+export async function* iterateJsonl(path) {
   const stream = createReadStream(path, { encoding: "utf8" });
   const lines = createInterface({ input: stream, crlfDelay: Infinity });
   let lineNumber = 0;
@@ -212,34 +225,46 @@ export async function readJsonl(path) {
     lineNumber += 1;
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
-    try { records.push(validateRecord(JSON.parse(trimmed))); }
+    try { yield validateRecord(JSON.parse(trimmed)); }
     catch (error) { throw new Error(`${path}:${lineNumber}: ${error.message}`); }
   }
+}
+
+export async function readJsonl(path) {
+  const records = [];
+  for await (const record of iterateJsonl(path)) records.push(record);
   return records;
+}
+
+function backfillUnresolvedEdges(db) {
+  db.exec(`UPDATE edges SET source_entity_id=(SELECT entity_id FROM entities WHERE entities.build_id=edges.build_id AND entities.stable_key=edges.source_key)
+    WHERE source_entity_id IS NULL;
+    UPDATE edges SET target_entity_id=(SELECT entity_id FROM entities WHERE entities.build_id=edges.build_id AND entities.stable_key=edges.target_key)
+    WHERE target_entity_id IS NULL;`);
 }
 
 export async function ingestFile(dbPath, sourcePath) {
   const absolute = resolve(sourcePath);
-  const bytes = readFileSync(absolute);
-  const sourceHash = createHash("sha256").update(bytes).digest("hex");
+  const sourceHash = hashFileStreaming(absolute);
   const importId = newId("import");
-  const records = await readJsonl(absolute);
   const db = openEvidenceDb(dbPath);
   db.prepare(`INSERT INTO import_runs(import_id,source_path,source_sha256,started_utc,status) VALUES(?,?,?,?,?)`).run(
     importId, absolute, sourceHash, nowUtc(), "running",
   );
+  let accepted = 0;
   try {
-    transaction(db, () => {
-      for (const record of records) applyRecord(db, record);
-      db.exec(`UPDATE edges SET source_entity_id=(SELECT entity_id FROM entities WHERE entities.build_id=edges.build_id AND entities.stable_key=edges.source_key)
-        WHERE source_entity_id IS NULL;
-        UPDATE edges SET target_entity_id=(SELECT entity_id FROM entities WHERE entities.build_id=edges.build_id AND entities.stable_key=edges.target_key)
-        WHERE target_entity_id IS NULL;`);
-    });
-    db.prepare(`UPDATE import_runs SET finished_utc=?,status='complete',accepted_count=? WHERE import_id=?`).run(nowUtc(), records.length, importId);
-    return { import_id: importId, source: absolute, sha256: sourceHash, accepted: records.length, format: FORMAT };
+    db.exec("BEGIN IMMEDIATE");
+    for await (const record of iterateJsonl(absolute)) {
+      applyRecord(db, record);
+      accepted += 1;
+    }
+    backfillUnresolvedEdges(db);
+    db.exec("COMMIT");
+    db.prepare(`UPDATE import_runs SET finished_utc=?,status='complete',accepted_count=? WHERE import_id=?`).run(nowUtc(), accepted, importId);
+    return { import_id: importId, source: absolute, sha256: sourceHash, accepted, format: FORMAT, memory_mode: "streaming-atomic" };
   } catch (error) {
-    db.prepare(`UPDATE import_runs SET finished_utc=?,status='failed',rejected_count=?,error=? WHERE import_id=?`).run(nowUtc(), records.length, error.message, importId);
+    try { db.exec("ROLLBACK"); } catch {}
+    db.prepare(`UPDATE import_runs SET finished_utc=?,status='failed',rejected_count=?,error=? WHERE import_id=?`).run(nowUtc(), accepted, error.message, importId);
     throw error;
   } finally {
     db.close();

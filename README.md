@@ -92,7 +92,7 @@ hexwitness backup ./evidence.db  # create and verify a consistent snapshot
 
 Official MCP Registry identity: `io.github.siaginw/hexwitness`. Registry-aware clients discover the same local stdio server published through npm; its declared launch contract is `hexwitness agent`.
 
-The npm package ships one bundled runtime instead of exposing its internal module tree. Python remains only in the thin Binary Ninja, IDA, and Ghidra exporters because those products expose their supported automation APIs through Python.
+The npm package ships one bundled runtime instead of exposing its internal module tree. Python remains only in the thin Binary Ninja, IDA, and Ghidra exporters because those products expose their supported automation APIs through Python. Large JSONL exports and long captures are streamed through atomic ingest and disk-backed normalization instead of being loaded wholesale into memory.
 
 ## Why HexWitness feels different
 
@@ -181,9 +181,9 @@ See [Capture packs](docs/CAPTURE-PACKS.md) for collector and scenario contracts.
 | Tool | Durable bridge |
 |---|---|
 | Binary Ninja | Deep JSONL exporter plus optional official Binary Ninja MCP live viewer |
-| IDA / IDAPython | JSONL exporter plus optional Hex-Rays-endorsed IDA Pro MCP |
-| Ghidra | Functions, calls, blocks, types, fields, and enum exporter |
-| Frida | Narrow semantic-event observer and JSONL normalizer |
+| IDA / IDAPython | Functions, strings, imports, references, blocks, and optional Hex-Rays pseudocode plus live MCP |
+| Ghidra | Functions, strings, imports, references, blocks, types, fields, and enum exporter |
+| Frida 17 | Narrow semantic-event observer and fail-closed JSONL normalizer |
 | Other tools | Versioned adapter manifest and vendor-neutral JSONL schema |
 
 HexWitness does not ship a weaker disassembler inside the project. Viewer MCPs provide live eyes. Exporters turn reviewed findings into portable memory. Read [Viewer MCP bridges](docs/VIEWER-MCP.md) and the [Adapter SDK](docs/ADAPTER-SDK.md).

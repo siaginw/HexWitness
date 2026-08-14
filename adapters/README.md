@@ -12,11 +12,13 @@ hexwitness adapters binary-ninja
 | Adapter | Runs inside | Default export |
 |---|---|---|
 | `binary-ninja` | Binary Ninja Python console | Functions, strings, imports, calls, references, blocks, types, fields, optional HLIL |
-| `ida` | IDAPython | Functions, strings, imports, calls, references, blocks |
-| `ghidra` | Ghidra Script Manager | Functions, calls, blocks, types, fields, enums |
+| `ida` | IDAPython | Functions, strings, imports, calls, code references, blocks, optional Hex-Rays pseudocode |
+| `ghidra` | Ghidra Script Manager | Functions, strings, imports, calls, code references, blocks, types, fields, enums |
 | `frida-jsonl` | Frida plus Node.js normalizer | Narrow semantic calls, markers, normalized runtime events |
 
-All static exporters hash the input executable and include tool/version provenance. Executable bytes and vendor database files are never exported. Decompiled text is disabled by default.
+All static exporters hash the input executable and include tool/version provenance. Executable bytes and vendor database files are never exported. Decompiled text is disabled by default. Set `HEXWITNESS_DECOMP=1` for Binary Ninja HLIL or IDA Hex-Rays slices when those licensed APIs are available.
+
+The Frida observer uses the Frida 17 `Module.getGlobalExportByName` API. Its normalizer requires an original UTC timestamp for every event and applies the same recursive secret/payload sanitization as capture-pack normalization.
 
 Import output with:
 

@@ -21,7 +21,7 @@ function localViewerUrl(value) {
   return url.href.replace(/\/$/, "");
 }
 
-export function buildServerDefinitions({ cliEntry, session = "hexwitness-project", client = "generic", viewer = "none", binaryNinjaUrl = BINARY_NINJA_MCP_URL, idaDirectory = "C:/tools/ida-pro-mcp" }) {
+export function buildServerDefinitions({ cliEntry, session = "hexwitness-project", client = "generic", viewer = "none", binaryNinjaUrl = BINARY_NINJA_MCP_URL, idaDirectory = join(homedir(), "tools", "ida-pro-mcp") }) {
   const servers = {
     hexwitness: {
       command: process.execPath,

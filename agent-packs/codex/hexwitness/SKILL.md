@@ -21,7 +21,7 @@ Own the investigation. Translate the user's goal into evidence queries; do not m
 
 For multi-step work, use `hexwitness_investigations` to resume matching work or `hexwitness_investigation_create` with a deterministic playbook, then maintain item/status/usage state. Inspect `hexwitness_failed_attempts` and run `hexwitness_evidence_challenge` before completion. Discovery/context results only suggest candidates; follow their exact source query. Local tools are directly agent-callable through `hexwitness_local_tool_status` and `hexwitness_run_local_tool`; use the smallest argv-only command, never pass secrets, and treat output as an observation until promoted. Diagnose vendor runtimes with `hexwitness_adapter_diagnostics`; Codex owns model authentication, so never route provider keys through HexWitness.
 
-For a new runtime capture, require build identity, bidirectional wire evidence, semantic events, timestamped action markers, screen recording, and context. Reject an incomplete baseline unless the user explicitly requests an exploratory pack. Normalize and seal before drawing conclusions from it.
+For a new runtime capture, require build identity, bidirectional wire evidence, semantic events, timestamped action markers, screen recording, and context. Every event must preserve its original UTC timestamp. Reject an incomplete baseline unless the user explicitly requests an exploratory pack. Normalize and seal before drawing conclusions; never rewrite a sealed pack or compare different builds.
 
 ## Runtime contract
 

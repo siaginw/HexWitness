@@ -39,13 +39,18 @@ test("capture packs reject missing baseline, seal with hashes, normalize safely,
     addCaptureMarker(pack, "complete", "observe completion");
 
     const normalized = normalizeCapturePack(pack);
+    assert.equal(normalized.memory_mode, "streaming-external-sort");
     const normalizedText = readFileSync(normalized.output, "utf8");
     assert.doesNotMatch(normalizedText, /private bytes|private response|must-not-survive|also-secret/);
     assert.match(normalizedText, /"safe":"kept"/);
     assert.match(normalizedText, /response_to/);
+    assert.ok(normalizedText.indexOf('"name":"request"') < normalizedText.indexOf('"name":"dispatch"'));
+    assert.ok(normalizedText.indexOf('"name":"dispatch"') < normalizedText.indexOf('"name":"response"'));
     const sealed = sealCapturePack(pack);
     assert.equal(sealed.manifest.quality, "accepted");
     assert.equal(verifyCapturePack(pack).passed, true);
+    assert.throws(() => normalizeCapturePack(pack), /sealed.*immutable/);
+    assert.throws(() => sealCapturePack(pack), /already sealed/);
 
     const dbPath = join(root, "evidence.db");
     await ingestFile(dbPath, normalized.output);

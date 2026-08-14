@@ -15,6 +15,10 @@ import ida_nalt  # type: ignore
 import idaapi  # type: ignore
 import idautils  # type: ignore
 import idc  # type: ignore
+try:
+    import ida_hexrays  # type: ignore
+except ImportError:
+    ida_hexrays = None
 
 
 FORMAT = "hexwitness-jsonl-v1"
@@ -38,12 +42,13 @@ digest = sha256_file(input_path)
 build_id = os.environ.get("HEXWITNESS_BUILD_ID", "sha256:" + digest[:16])
 output = os.environ.get("HEXWITNESS_OUTPUT", input_path + ".hexwitness.jsonl")
 image_base = ida_nalt.get_imagebase()
+include_decomp = os.environ.get("HEXWITNESS_DECOMP") == "1"
 
 with open(output, "w", encoding="utf-8", newline="\n") as stream:
     emit(stream, "build", build_id=build_id, label=os.path.basename(input_path), sha256=digest,
          architecture=ida_ida.inf_get_procname(), image_base=hex(image_base), tool="ida",
          tool_version=idaapi.get_kernel_version(), created_utc=datetime.now(timezone.utc).isoformat(),
-         metadata={"decompilation_included": False})
+         metadata={"decompilation_included": include_decomp and ida_hexrays is not None})
     emit(stream, "artifact", build_id=build_id, role="executable", path_hint=os.path.basename(input_path),
          sha256=digest, size_bytes=os.path.getsize(input_path))
 
@@ -54,8 +59,17 @@ with open(output, "w", encoding="utf-8", newline="\n") as stream:
         emit(stream, "entity", build_id=build_id, kind="function", stable_key="fn:" + hex(start),
              name=idc.get_func_name(start), address=hex(start), size=function.end_ea - start,
              signature=idc.get_type(start))
+        if include_decomp and ida_hexrays is not None:
+            try:
+                text = str(ida_hexrays.decompile(start))
+                emit(stream, "slice", build_id=build_id, entity_key="fn:" + hex(start), kind="pseudocode",
+                     start_address=hex(start), end_address=hex(function.end_ea), text=text,
+                     metadata={"tool": "ida-hexrays"})
+            except Exception:
+                pass
         flowchart = idaapi.FlowChart(function)
         blocks = list(flowchart)
+        block_indexes = {block.start_ea: index for index, block in enumerate(blocks)}
         for index, block in enumerate(blocks):
             block_key = "bb:%s:%d" % (hex(start), index)
             emit(stream, "entity", build_id=build_id, kind="basic_block", stable_key=block_key,
@@ -63,7 +77,7 @@ with open(output, "w", encoding="utf-8", newline="\n") as stream:
                  size=block.end_ea - block.start_ea, metadata={"function": "fn:" + hex(start), "index": index})
             emit(stream, "edge", build_id=build_id, kind="contains", source="fn:" + hex(start), target=block_key)
             for successor in block.succs():
-                target_index = next((i for i, candidate in enumerate(blocks) if candidate.start_ea == successor.start_ea), None)
+                target_index = block_indexes.get(successor.start_ea)
                 if target_index is not None:
                     emit(stream, "edge", build_id=build_id, kind="control_flow", source=block_key,
                          target="bb:%s:%d" % (hex(start), target_index))
@@ -90,12 +104,11 @@ with open(output, "w", encoding="utf-8", newline="\n") as stream:
 
     for start in functions:
         for instruction in idautils.FuncItems(start):
-            if not idc.is_call_insn(instruction):
-                continue
             for target in idautils.CodeRefsFrom(instruction, False):
                 target_function = ida_funcs.get_func(target)
                 if target_function and target_function.start_ea in function_starts:
-                    emit(stream, "edge", build_id=build_id, kind="call", source="fn:" + hex(start),
+                    edge_kind = "call" if idc.is_call_insn(instruction) else "code_reference"
+                    emit(stream, "edge", build_id=build_id, kind=edge_kind, source="fn:" + hex(start),
                          target="fn:" + hex(target_function.start_ea), source_address=hex(instruction),
                          target_address=hex(target_function.start_ea))
 

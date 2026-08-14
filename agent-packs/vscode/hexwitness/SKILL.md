@@ -19,7 +19,7 @@ Use the HexWitness MCP tools autonomously from Agent mode.
 
 For multi-step work, use `hexwitness_investigations` to resume matching work or `hexwitness_investigation_create` with a deterministic playbook, then maintain item/status/usage state. Inspect `hexwitness_failed_attempts` and run `hexwitness_evidence_challenge` before completion. Retrieval is discovery-only until the exact source record is opened. Local analysis tools are agent-callable through `hexwitness_local_tool_status` and `hexwitness_run_local_tool`; never pass secrets or auto-promote tool output. Diagnose adapters through `hexwitness_adapter_diagnostics`; Copilot owns provider authentication.
 
-For runtime capture work, require exact build identity, bidirectional wire, semantic events, timestamped action markers, screen recording, and context. Normalize, seal, and verify before reasoning from the run. Reject an incomplete baseline by default.
+For runtime capture work, require exact build identity, bidirectional wire, semantic events, timestamped action markers, screen recording, and context. Preserve every event's original UTC timestamp. Normalize, seal, and verify before reasoning from the run; never rewrite a sealed pack or compare different builds. Reject an incomplete baseline by default.
 
 ## Runtime contract
 

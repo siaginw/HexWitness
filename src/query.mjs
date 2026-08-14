@@ -1,5 +1,7 @@
 import { canonicalAddress, publicRow } from "./util.mjs";
 
+const EDGE_STATEMENTS = new WeakMap();
+
 function rows(statement, ...params) {
   return statement.all(...params).map(publicRow);
 }
@@ -7,6 +9,14 @@ function rows(statement, ...params) {
 function boundedLimit(value, fallback, maximum) {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? Math.min(parsed, maximum) : fallback;
+}
+
+function likePattern(value) {
+  return `%${String(value ?? "").replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%`;
+}
+
+function ftsPrefix(value) {
+  return `"${String(value ?? "").trim().replaceAll('"', '""')}"*`;
 }
 
 function requireUnambiguousBuild(db, column, value) {
@@ -21,20 +31,17 @@ export function listBuilds(db) {
 
 export function search(db, { q, buildId = null, kind = null, limit = 50 }) {
   const plain = String(q ?? "").trim();
-  const term = `%${plain}%`;
+  const term = likePattern(plain);
   if (plain.length >= 2) {
-    try {
-      const match = `"${plain.replaceAll('"', '""')}"*`;
-      const found = rows(db.prepare(`SELECT e.* FROM entities_fts f JOIN entities e ON e.entity_id=f.entity_id
-        WHERE entities_fts MATCH ? AND (? IS NULL OR e.build_id=?) AND (? IS NULL OR e.kind=?)
-        ORDER BY bm25(entities_fts),e.name LIMIT ?`), match, buildId, buildId, kind, kind, boundedLimit(limit, 50, 250));
-      if (found.length) return found;
-    } catch {}
+    const found = rows(db.prepare(`SELECT e.* FROM entities_fts f JOIN entities e ON e.entity_id=f.entity_id
+      WHERE entities_fts MATCH ? AND (? IS NULL OR e.build_id=?) AND (? IS NULL OR e.kind=?)
+      ORDER BY bm25(entities_fts),e.name LIMIT ?`), ftsPrefix(plain), buildId, buildId, kind, kind, boundedLimit(limit, 50, 250));
+    if (found.length) return found;
   }
   return rows(db.prepare(`SELECT entity_id,build_id,kind,stable_key,name,address,size,namespace,signature,metadata_json
     FROM entities WHERE (? IS NULL OR build_id=?) AND (? IS NULL OR kind=?)
-    AND (name LIKE ? OR stable_key LIKE ? OR signature LIKE ? OR address LIKE ?)
-    ORDER BY CASE WHEN name=? THEN 0 WHEN name LIKE ? THEN 1 ELSE 2 END,name LIMIT ?`),
+    AND (name LIKE ? ESCAPE '\\' OR stable_key LIKE ? ESCAPE '\\' OR signature LIKE ? ESCAPE '\\' OR address LIKE ? ESCAPE '\\')
+    ORDER BY CASE WHEN name=? THEN 0 WHEN name LIKE ? ESCAPE '\\' THEN 1 ELSE 2 END,name LIMIT ?`),
     buildId, buildId, kind, kind, term, term, term, term, q ?? "", `${q ?? ""}%`, boundedLimit(limit, 50, 250));
 }
 
@@ -54,13 +61,31 @@ export function findEntity(db, { buildId = null, address = null, stableKey = nul
 
 function edgeRows(db, entity, direction, limit = 100) {
   const incoming = direction === "incoming";
-  const joinColumn = incoming ? "source_entity_id" : "target_entity_id";
-  const filterColumn = incoming ? "target_entity_id" : "source_entity_id";
-  return rows(db.prepare(`SELECT e.edge_id,e.kind,e.source_key,e.target_key,e.source_address,e.target_address,e.metadata_json,
-      peer.entity_id AS peer_entity_id,peer.kind AS peer_kind,peer.stable_key AS peer_stable_key,
-      peer.name AS peer_name,peer.address AS peer_address
+  let statements = EDGE_STATEMENTS.get(db);
+  if (!statements) { statements = new Map(); EDGE_STATEMENTS.set(db, statements); }
+  let statement = statements.get(direction);
+  if (!statement) {
+    const joinColumn = incoming ? "source_entity_id" : "target_entity_id";
+    const filterColumn = incoming ? "target_entity_id" : "source_entity_id";
+    statement = db.prepare(`SELECT e.edge_id,e.kind,e.source_key,e.target_key,e.source_entity_id,e.target_entity_id,e.source_address,e.target_address,e.metadata_json,
+      peer.entity_id AS peer_entity_id,peer.build_id AS peer_build_id,peer.kind AS peer_kind,peer.stable_key AS peer_stable_key,
+      peer.name AS peer_name,peer.address AS peer_address,peer.size AS peer_size,peer.namespace AS peer_namespace,
+      peer.signature AS peer_signature,peer.decompiler AS peer_decompiler,peer.metadata_json AS peer_metadata_json
     FROM edges e LEFT JOIN entities peer ON peer.entity_id=e.${joinColumn}
-    WHERE e.${filterColumn}=? ORDER BY e.kind,peer.address LIMIT ?`), entity.entity_id, boundedLimit(limit, 100, 500));
+    WHERE e.${filterColumn}=? ORDER BY e.kind,peer.address LIMIT ?`);
+    statements.set(direction, statement);
+  }
+  return rows(statement, entity.entity_id, boundedLimit(limit, 100, 5000));
+}
+
+function peerFromEdge(edge) {
+  if (!edge.peer_entity_id) return null;
+  return {
+    entity_id: edge.peer_entity_id, build_id: edge.peer_build_id, kind: edge.peer_kind,
+    stable_key: edge.peer_stable_key, name: edge.peer_name, address: edge.peer_address,
+    size: edge.peer_size, namespace: edge.peer_namespace, signature: edge.peer_signature,
+    decompiler: edge.peer_decompiler, metadata: edge.peer_metadata ?? {},
+  };
 }
 
 export function explain(db, selector) {
@@ -151,7 +176,7 @@ export function stats(db) {
   };
 }
 
-export function memoryStatus(db) {
+export function memoryStatus(db, { counts = null } = {}) {
   const pageCount = Number(db.prepare("PRAGMA page_count").get()?.page_count ?? 0);
   const pageSize = Number(db.prepare("PRAGMA page_size").get()?.page_size ?? 0);
   return {
@@ -163,7 +188,7 @@ export function memoryStatus(db) {
       activity_retains_arguments_or_results: false,
     },
     durable: {
-      ...stats(db),
+      ...(counts ?? stats(db)),
       database_bytes: pageCount * pageSize,
       latest_import: publicRow(db.prepare("SELECT import_id,source_sha256,finished_utc,status,accepted_count,rejected_count FROM import_runs ORDER BY started_utc DESC LIMIT 1").get()),
       latest_capture: publicRow(db.prepare("SELECT capture_id,build_id,scenario,finished_utc,status FROM captures ORDER BY COALESCE(finished_utc,started_utc) DESC LIMIT 1").get()),
@@ -174,6 +199,7 @@ export function memoryStatus(db) {
 }
 
 export function gapReport(db, selector, objective = "behavior") {
+  if (!["runtime", "protocol", "behavior"].includes(objective)) throw new Error(`unsupported gap objective: ${objective}`);
   const dossier = explain(db, selector);
   if (!dossier) return null;
   const missing = [];
@@ -198,14 +224,16 @@ export function reachable(db, selector, { direction = "outgoing", kind = null, d
   const seen = new Set([root.entity_id]);
   const nodes = [{ ...root, depth: 0 }];
   const traversed = [];
-  while (queue.length && nodes.length < maximumNodes) {
-    const current = queue.shift();
+  let queueIndex = 0;
+  while (queueIndex < queue.length && nodes.length < maximumNodes) {
+    const current = queue[queueIndex];
+    queueIndex += 1;
     if (current.depth >= maximumDepth) continue;
     for (const edge of edgeRows(db, current.entity, direction, maximumNodes)) {
       if (kind && edge.kind !== kind) continue;
       traversed.push({ ...edge, depth: current.depth + 1 });
       if (!edge.peer_entity_id || seen.has(edge.peer_entity_id)) continue;
-      const peer = publicRow(db.prepare("SELECT * FROM entities WHERE entity_id=?").get(edge.peer_entity_id));
+      const peer = peerFromEdge(edge);
       if (!peer) continue;
       seen.add(peer.entity_id);
       nodes.push({ ...peer, depth: current.depth + 1 });
@@ -252,17 +280,32 @@ export function classDetail(db, { buildId = null, name = null, stableKey = null,
 export function uuidLookup(db, { buildId = null, uuid, limit = 100 }) {
   const normalized = String(uuid ?? "").trim().replace(/[{}]/g, "").toLowerCase();
   if (!normalized) return [];
-  const term = `%${normalized}%`;
+  const exact = rows(db.prepare(`SELECT * FROM entities WHERE (? IS NULL OR build_id=?) AND metadata_uuid=? COLLATE NOCASE
+    ORDER BY kind,name LIMIT ?`), buildId, buildId, normalized, boundedLimit(limit, 100, 500));
+  if (exact.length) return exact;
+  const term = likePattern(normalized);
+  const found = rows(db.prepare(`SELECT e.* FROM entities_fts f JOIN entities e ON e.entity_id=f.entity_id
+    WHERE entities_fts MATCH ? AND (? IS NULL OR e.build_id=?) ORDER BY bm25(entities_fts),e.kind,e.name LIMIT ?`),
+  ftsPrefix(normalized), buildId, buildId, boundedLimit(limit, 100, 500));
+  if (found.length) return found;
   return rows(db.prepare(`SELECT * FROM entities WHERE (? IS NULL OR build_id=?) AND
-    (LOWER(stable_key) LIKE ? OR LOWER(name) LIKE ? OR LOWER(metadata_json) LIKE ?)
+    (LOWER(stable_key) LIKE ? ESCAPE '\\' OR LOWER(name) LIKE ? ESCAPE '\\' OR LOWER(metadata_json) LIKE ? ESCAPE '\\')
     ORDER BY CASE WHEN LOWER(stable_key)=? THEN 0 WHEN LOWER(name)=? THEN 1 ELSE 2 END,kind,name LIMIT ?`),
   buildId, buildId, term, term, term, normalized, normalized, boundedLimit(limit, 100, 500));
 }
 
 export function typeRegistry(db, { buildId, q = "", kind = null, limit = 500 }) {
-  const term = `%${String(q).trim()}%`;
+  const plain = String(q).trim();
+  if (plain.length >= 2) {
+    const found = rows(db.prepare(`SELECT e.* FROM entities_fts f JOIN entities e ON e.entity_id=f.entity_id
+      WHERE entities_fts MATCH ? AND e.build_id=? AND e.kind IN ('type','class','enum','vtable','vtable_slot')
+      AND (? IS NULL OR e.kind=?) ORDER BY bm25(entities_fts),e.kind,e.name LIMIT ?`),
+    ftsPrefix(plain), buildId, kind, kind, boundedLimit(limit, 500, 2000));
+    if (found.length) return found;
+  }
+  const term = likePattern(plain);
   return rows(db.prepare(`SELECT * FROM entities WHERE build_id=? AND kind IN ('type','class','enum','vtable','vtable_slot')
-    AND (? IS NULL OR kind=?) AND (name LIKE ? OR stable_key LIKE ? OR signature LIKE ? OR metadata_json LIKE ?)
+    AND (? IS NULL OR kind=?) AND (name LIKE ? ESCAPE '\\' OR stable_key LIKE ? ESCAPE '\\' OR signature LIKE ? ESCAPE '\\' OR metadata_json LIKE ? ESCAPE '\\')
     ORDER BY kind,name LIMIT ?`), buildId, kind, kind, term, term, term, term, boundedLimit(limit, 500, 2000));
 }
 
@@ -292,12 +335,12 @@ export function dataflow(db, selector, { direction = "both", depth = 2, limit = 
 export function genericQuery(db, { buildId = null, kinds = [], edgeKinds = [], q = "", hasEvidence = null, hasRuntime = null, limit = 200 } = {}) {
   const allowedKinds = Array.isArray(kinds) ? kinds.filter(Boolean) : String(kinds).split(",").filter(Boolean);
   const allowedEdges = Array.isArray(edgeKinds) ? edgeKinds.filter(Boolean) : String(edgeKinds).split(",").filter(Boolean);
-  const term = `%${String(q).trim()}%`;
+  const term = likePattern(String(q).trim());
   const kindCsv = allowedKinds.join(",");
   const candidates = rows(db.prepare(`SELECT e.*,
     EXISTS(SELECT 1 FROM entity_evidence ee WHERE ee.entity_id=e.entity_id) AS has_evidence,
     EXISTS(SELECT 1 FROM events ev JOIN captures c ON c.capture_id=ev.capture_id WHERE c.build_id=e.build_id AND ev.address=e.address) AS has_runtime
-    FROM entities e WHERE (? IS NULL OR e.build_id=?) AND (e.name LIKE ? OR e.stable_key LIKE ? OR e.signature LIKE ? OR e.metadata_json LIKE ?)
+    FROM entities e WHERE (? IS NULL OR e.build_id=?) AND (e.name LIKE ? ESCAPE '\\' OR e.stable_key LIKE ? ESCAPE '\\' OR e.signature LIKE ? ESCAPE '\\' OR e.metadata_json LIKE ? ESCAPE '\\')
     AND (?='' OR INSTR(','||?||',',','||e.kind||',')>0)
     AND (? IS NULL OR EXISTS(SELECT 1 FROM entity_evidence ee WHERE ee.entity_id=e.entity_id)=?)
     AND (? IS NULL OR EXISTS(SELECT 1 FROM events ev JOIN captures c ON c.capture_id=ev.capture_id WHERE c.build_id=e.build_id AND ev.address=e.address)=?)
@@ -305,39 +348,62 @@ export function genericQuery(db, { buildId = null, kinds = [], edgeKinds = [], q
   hasEvidence == null ? null : Number(Boolean(hasEvidence)), hasEvidence == null ? null : Number(Boolean(hasEvidence)),
   hasRuntime == null ? null : Number(Boolean(hasRuntime)), hasRuntime == null ? null : Number(Boolean(hasRuntime)),
   boundedLimit(limit, 200, 5000));
-  return candidates
-    .map((item) => {
-      if (!allowedEdges.length) return item;
-      const edges = db.prepare(`SELECT * FROM edges WHERE build_id=? AND (source_entity_id=? OR target_entity_id=?)`).all(item.build_id, item.entity_id, item.entity_id).map(publicRow);
-      return { ...item, edges: edges.filter((edge) => allowedEdges.includes(edge.kind)) };
-    }).filter((item) => !allowedEdges.length || item.edges.length);
+  if (!allowedEdges.length || !candidates.length) return candidates;
+  const edgesByEntity = new Map(candidates.map((item) => [item.entity_id, []]));
+  const seenEdges = new Set();
+  const kindMarks = allowedEdges.map(() => "?").join(",");
+  for (let offset = 0; offset < candidates.length; offset += 400) {
+    const ids = candidates.slice(offset, offset + 400).map((item) => item.entity_id);
+    const idMarks = ids.map(() => "?").join(",");
+    const edges = db.prepare(`SELECT * FROM edges WHERE kind IN (${kindMarks}) AND
+      (source_entity_id IN (${idMarks}) OR target_entity_id IN (${idMarks}))`).all(...allowedEdges, ...ids, ...ids).map(publicRow);
+    for (const edge of edges) {
+      if (seenEdges.has(edge.edge_id)) continue;
+      seenEdges.add(edge.edge_id);
+      if (edgesByEntity.has(edge.source_entity_id)) edgesByEntity.get(edge.source_entity_id).push(edge);
+      if (edge.target_entity_id !== edge.source_entity_id && edgesByEntity.has(edge.target_entity_id)) edgesByEntity.get(edge.target_entity_id).push(edge);
+    }
+  }
+  return candidates.map((item) => ({ ...item, edges: edgesByEntity.get(item.entity_id) })).filter((item) => item.edges.length);
 }
 
 export function metadataLookup(db, { buildId = null, q, kinds = [], limit = 200 }) {
   const allowedKinds = Array.isArray(kinds) ? kinds.filter(Boolean) : String(kinds ?? "").split(",").filter(Boolean);
   const kindCsv = allowedKinds.join(",");
-  const term = `%${String(q ?? "").trim()}%`;
+  const plain = String(q ?? "").trim();
+  if (plain.length >= 2) {
+    const found = rows(db.prepare(`SELECT e.* FROM entities_fts f JOIN entities e ON e.entity_id=f.entity_id
+      WHERE entities_fts MATCH ? AND (? IS NULL OR e.build_id=?) AND (?='' OR INSTR(','||?||',',','||e.kind||',')>0)
+      ORDER BY bm25(entities_fts),e.kind,e.name LIMIT ?`), ftsPrefix(plain), buildId, buildId, kindCsv, kindCsv, boundedLimit(limit, 200, 2000));
+    if (found.length) return found;
+  }
+  const term = likePattern(plain);
   return rows(db.prepare(`SELECT * FROM entities WHERE (? IS NULL OR build_id=?)
     AND (?='' OR INSTR(','||?||',',','||kind||',')>0)
-    AND (metadata_json LIKE ? OR stable_key LIKE ? OR name LIKE ?) ORDER BY kind,name LIMIT ?`),
+    AND (metadata_json LIKE ? ESCAPE '\\' OR stable_key LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\') ORDER BY kind,name LIMIT ?`),
   buildId, buildId, kindCsv, kindCsv, term, term, term, boundedLimit(limit, 200, 2000));
 }
 
 export function fieldOffsets(db, { buildId, owner = "", q = "", limit = 500 }) {
-  const ownerTerm = `%${String(owner).trim()}%`; const term = `%${String(q).trim()}%`;
+  const ownerTerm = likePattern(String(owner).trim()); const term = likePattern(String(q).trim());
   return rows(db.prepare(`SELECT f.* FROM entities f WHERE f.build_id=? AND f.kind='field'
-    AND (f.name LIKE ? OR f.stable_key LIKE ? OR f.signature LIKE ?)
-    AND (f.metadata_json LIKE ? OR EXISTS(SELECT 1 FROM edges e JOIN entities o ON o.entity_id=e.source_entity_id
-      WHERE e.target_entity_id=f.entity_id AND e.kind='field' AND (o.name LIKE ? OR o.stable_key LIKE ?)))
-    ORDER BY json_extract(f.metadata_json,'$.offset'),f.name LIMIT ?`), buildId, term, term, term, ownerTerm, ownerTerm, ownerTerm, boundedLimit(limit, 500, 2000));
+    AND (f.name LIKE ? ESCAPE '\\' OR f.stable_key LIKE ? ESCAPE '\\' OR f.signature LIKE ? ESCAPE '\\')
+    AND (f.metadata_owner LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM edges e JOIN entities o ON o.entity_id=e.source_entity_id
+      WHERE e.target_entity_id=f.entity_id AND e.kind='field' AND (o.name LIKE ? ESCAPE '\\' OR o.stable_key LIKE ? ESCAPE '\\')))
+    ORDER BY f.metadata_offset,f.name LIMIT ?`), buildId, term, term, term, ownerTerm, ownerTerm, ownerTerm, boundedLimit(limit, 500, 2000));
 }
 
 export function decompSearch(db, { buildId, q, kind = null, limit = 200 }) {
-  const term = `%${String(q ?? "").trim()}%`;
-  const entities = rows(db.prepare(`SELECT entity_id,build_id,kind,stable_key,name,address,signature,decompiler,metadata_json
-    FROM entities WHERE build_id=? AND decompiler LIKE ? ORDER BY address LIMIT ?`), buildId, term, boundedLimit(limit, 200, 1000));
+  const plain = String(q ?? "").trim();
+  const maximum = boundedLimit(limit, 200, 1000);
+  let entities = [];
+  if (plain.length >= 2) entities = rows(db.prepare(`SELECT e.* FROM entities_fts f JOIN entities e ON e.entity_id=f.entity_id
+    WHERE entities_fts MATCH ? AND e.build_id=? AND e.decompiler IS NOT NULL ORDER BY bm25(entities_fts),e.address LIMIT ?`), ftsPrefix(plain), buildId, maximum);
+  const term = likePattern(plain);
+  if (!entities.length) entities = rows(db.prepare(`SELECT entity_id,build_id,kind,stable_key,name,address,signature,decompiler,metadata_json
+    FROM entities WHERE build_id=? AND decompiler LIKE ? ESCAPE '\\' ORDER BY address LIMIT ?`), buildId, term, maximum);
   const slices = rows(db.prepare(`SELECT * FROM analysis_slices WHERE build_id=? AND (? IS NULL OR kind=?)
-    AND (text LIKE ? OR operations_json LIKE ?) ORDER BY entity_key,start_address LIMIT ?`), buildId, kind, kind, term, term, boundedLimit(limit, 200, 1000));
+    AND (text LIKE ? ESCAPE '\\' OR operations_json LIKE ? ESCAPE '\\') ORDER BY entity_key,start_address LIMIT ?`), buildId, kind, kind, term, term, maximum);
   return { build_id: buildId, query: q, entities, slices };
 }
 
@@ -351,16 +417,16 @@ export function shortestPath(db, fromSelector, toSelector, { kind = null, direct
   if (!from || !to) return null;
   if (from.build_id !== to.build_id) throw new Error("path endpoints must belong to the same build");
   const maximumDepth = Math.max(1, Math.min(Number(depth) || 8, 20));
-  const queue = [{ entity: from, path: [] }]; const seen = new Set([from.entity_id]);
-  while (queue.length) {
-    const current = queue.shift();
+  const queue = [{ entity: from, path: [] }]; const seen = new Set([from.entity_id]); let queueIndex = 0;
+  while (queueIndex < queue.length) {
+    const current = queue[queueIndex]; queueIndex += 1;
     if (current.path.length >= maximumDepth) continue;
     for (const edge of edgeRows(db, current.entity, direction, 5000)) {
       if (kind && edge.kind !== kind) continue;
       const nextPath = [...current.path, edge];
       if (edge.peer_entity_id === to.entity_id) return { from, to, direction, kind, path: nextPath, depth: nextPath.length };
       if (!edge.peer_entity_id || seen.has(edge.peer_entity_id)) continue;
-      const peer = publicRow(db.prepare("SELECT * FROM entities WHERE entity_id=?").get(edge.peer_entity_id));
+      const peer = peerFromEdge(edge);
       if (!peer) continue;
       seen.add(peer.entity_id); queue.push({ entity: peer, path: nextPath });
     }
@@ -430,20 +496,17 @@ export function captureTimeline(db, captureId, { after = 0, limit = 500, source 
 }
 
 export function captureSearch(db, { captureId = null, q = "", direction = null, kind = null, limit = 200 } = {}) {
-  const plain = String(q).trim(); const term = `%${plain}%`;
+  const plain = String(q).trim(); const term = likePattern(plain);
   if (plain.length >= 2) {
-    try {
-      const match = `"${plain.replaceAll('"', '""')}"*`;
-      const found = rows(db.prepare(`SELECT e.*,c.scenario,c.build_id FROM events_fts f JOIN events e ON e.event_id=f.event_id
-        JOIN captures c ON c.capture_id=e.capture_id WHERE events_fts MATCH ? AND (? IS NULL OR e.capture_id=?)
-        AND (? IS NULL OR e.direction=?) AND (? IS NULL OR e.kind=?) ORDER BY bm25(events_fts),e.ts_utc LIMIT ?`),
-      match, captureId, captureId, direction, direction, kind, kind, boundedLimit(limit, 200, 2000));
-      if (found.length) return found;
-    } catch {}
+    const found = rows(db.prepare(`SELECT e.*,c.scenario,c.build_id FROM events_fts f JOIN events e ON e.event_id=f.event_id
+      JOIN captures c ON c.capture_id=e.capture_id WHERE events_fts MATCH ? AND (? IS NULL OR e.capture_id=?)
+      AND (? IS NULL OR e.direction=?) AND (? IS NULL OR e.kind=?) ORDER BY bm25(events_fts),e.ts_utc LIMIT ?`),
+    ftsPrefix(plain), captureId, captureId, direction, direction, kind, kind, boundedLimit(limit, 200, 2000));
+    if (found.length) return found;
   }
   return rows(db.prepare(`SELECT e.*,c.scenario,c.build_id FROM events e JOIN captures c ON c.capture_id=e.capture_id
     WHERE (? IS NULL OR e.capture_id=?) AND (? IS NULL OR e.direction=?) AND (? IS NULL OR e.kind=?)
-    AND (e.name LIKE ? OR e.summary LIKE ? OR e.fields_json LIKE ?) ORDER BY e.ts_utc,e.capture_id,e.ordinal LIMIT ?`),
+    AND (e.name LIKE ? ESCAPE '\\' OR e.summary LIKE ? ESCAPE '\\' OR e.fields_json LIKE ? ESCAPE '\\') ORDER BY e.ts_utc,e.capture_id,e.ordinal LIMIT ?`),
   captureId, captureId, direction, direction, kind, kind, term, term, term, boundedLimit(limit, 200, 2000));
 }
 
@@ -462,6 +525,10 @@ function eventSignature(event) {
 }
 
 export function compareCaptures(db, leftId, rightId) {
+  const leftCapture = db.prepare("SELECT capture_id,build_id FROM captures WHERE capture_id=?").get(leftId);
+  const rightCapture = db.prepare("SELECT capture_id,build_id FROM captures WHERE capture_id=?").get(rightId);
+  if (!leftCapture || !rightCapture) return null;
+  if (leftCapture.build_id !== rightCapture.build_id) throw new Error("capture comparison requires the same build_id");
   const left = captureTimeline(db, leftId, { limit: 5000 });
   const right = captureTimeline(db, rightId, { limit: 5000 });
   if (!left || !right) return null;

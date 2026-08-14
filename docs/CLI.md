@@ -32,7 +32,7 @@ hexwitness tool status
 hexwitness tool run EXECUTABLE [ARG...] [--root DIR] [--cwd DIR] [--timeout MS]
 ```
 
-`ingest` validates the complete JSONL before applying one atomic, idempotent transaction. `serve` is query-only. Non-local binds require `HEXWITNESS_API_TOKEN`. Machine-readable `setup --json` never prompts when client and viewer are supplied.
+`ingest` validates and applies JSONL line by line inside one atomic, idempotent transaction. Memory stays bounded even for large exports; any invalid record rolls the transaction back. `serve` is query-only. Non-local binds require `HEXWITNESS_API_TOKEN`. Machine-readable `setup --json` never prompts when client and viewer are supplied.
 
 `memory` reports durable evidence counts, database size, latest ingest/capture, and the query-before-live-tool reuse policy.
 
@@ -48,7 +48,7 @@ hexwitness tool run EXECUTABLE [ARG...] [--root DIR] [--cwd DIR] [--timeout MS]
 hexwitness search QUERY [--build BUILD] [--kind KIND]
 hexwitness builds
 hexwitness query [TEXT] [--build BUILD] [--kinds function,class] [--edge-kinds call,reads]
-hexwitness explain ADDRESS [--build BUILD]
+hexwitness explain [ADDRESS | --stable-key KEY | --entity-id ID] [--build BUILD]
 hexwitness gaps ADDRESS [--build BUILD] [--objective behavior]
 hexwitness functions [TEXT] --build BUILD
 hexwitness classes [TEXT] --build BUILD
@@ -94,7 +94,9 @@ hexwitness capture verify DIR
 hexwitness capture import DIR [--db PATH]
 ```
 
-Default roles: `bidirectional-wire`, `semantic-events`, `action-markers`, `screen-recording`, and `context`. `seal` rejects missing or empty baseline evidence unless `--allow-incomplete` explicitly labels an exploratory pack. Failed normalization restores the active manifest so the operator can repair and retry it.
+Default roles: `bidirectional-wire`, `semantic-events`, `action-markers`, `screen-recording`, and `context`. `seal` rejects missing or empty baseline evidence unless `--allow-incomplete` explicitly labels an exploratory pack. Failed normalization restores the active manifest so the operator can repair and retry it. Normalization uses a disk-backed stable sort; after sealing, normalized evidence is immutable and a second normalize command is rejected.
+
+Address strings should use `0x` hexadecimal form. Bare decimal strings remain supported, but ambiguous leading-zero strings are rejected instead of being silently interpreted in the wrong radix.
 
 ## Capture queries
 

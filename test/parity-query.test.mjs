@@ -9,6 +9,7 @@ import { ingestRecords } from "../src/ingest.mjs";
 import {
   analysisSlices, captureSearch, classDetail, compareBuilds, compareCaptures, dataflow, decompSearch, edgeKinds, fieldOffsets,
   gapWorklist, genericQuery, metadataLookup, reachable, shortestPath, typeRegistry, uuidLookup,
+  gapReport,
 } from "../src/query.mjs";
 
 const base = (record, fields) => ({ format: FORMAT, record, ...fields });
@@ -62,5 +63,12 @@ test("generic parity queries cover classes, UUIDs, slices, dataflow, reach, gaps
     assert.equal(comparison.first_divergence.index, 1);
     assert.equal(comparison.deltas[0].delta, 1);
     assert.equal(captureSearch(db, { captureId: "right", q: "response" })[0].name, "response");
+    assert.equal(compareCaptures(db, "left", "missing"), null);
+    ingestRecords(db, [
+      base("capture", { build_id: "parity-build-v2", capture_id: "other-build", scenario: "mismatch", status: "sealed" }),
+      base("event", { build_id: "parity-build-v2", capture_id: "other-build", ordinal: 1, source: "wire", kind: "message", name: "request" }),
+    ]);
+    assert.throws(() => compareCaptures(db, "left", "other-build"), /same build_id/);
+    assert.throws(() => gapReport(db, { buildId: build_id, address: "0x1000" }, "typo"), /unsupported gap objective/);
   } finally { db?.close(); rmSync(root, { recursive: true, force: true }); }
 });

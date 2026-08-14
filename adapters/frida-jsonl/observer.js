@@ -21,9 +21,7 @@ function pointerValue(value, type) {
 
 function resolveHook(hook) {
   if (hook.export) {
-    const address = Module.findGlobalExportByName(hook.export);
-    if (!address) throw new Error(`export not found: ${hook.export}`);
-    return address;
+    return Module.getGlobalExportByName(hook.export);
   }
   if (!hook.module || hook.offset == null) throw new Error("hook requires export or module + offset");
   const module = Process.getModuleByName(hook.module);
