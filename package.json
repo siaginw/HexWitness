@@ -87,7 +87,7 @@
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "ajv": "^8.17.1",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.2",
     "zod": "^3.25.76"
   }
 }
