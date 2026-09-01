@@ -42,7 +42,7 @@ jobs:
         with:
           subject-path: release/*.tgz
           sbom-path: release/hexwitness-${{ github.ref_name }}.cdx.json
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: hexwitness-${{ github.ref_name }}
           path: release/*
